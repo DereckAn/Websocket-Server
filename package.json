@@ -1,0 +1,38 @@
+{
+  "name": "square-webhook-websocket-server",
+  "version": "1.0.0",
+  "description": "Bun server for Square webhooks with WebSocket broadcasting for real-time order notifications",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts",
+    "build": "bun build src/index.ts --outdir=dist --target=bun",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "square": "^42.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "keywords": [
+    "square",
+    "webhook",
+    "websocket",
+    "bun",
+    "real-time",
+    "orders",
+    "restaurant"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

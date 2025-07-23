@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  # Production service
+  webhook-server:
+    build: 
+      context: .
+      target: production
+    container_name: square-webhook-server
+    ports:
+      - "${WEBHOOK_PORT:-3000}:3000"
+    environment:
+      # Square Configuration
+      - SQUARE_WEBHOOK_SIGNATURE_KEY=${SQUARE_WEBHOOK_SIGNATURE_KEY}
+      - SQUARE_ACCESS_TOKEN=${SQUARE_ACCESS_TOKEN}
+      - SQUARE_APPLICATION_ID=${SQUARE_APPLICATION_ID}
+      - SQUARE_ENVIRONMENT=${SQUARE_ENVIRONMENT:-sandbox}
+      
+      # Server Configuration
+      - WEBHOOK_PORT=3000
+      - WEBSOCKET_PORT=3001
+      - NODE_ENV=${NODE_ENV:-production}
+      
+      # CORS Configuration
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+      
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    restart: unless-stopped
+    
+    # Resource limits for low-traffic usage
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.25'
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    networks:
+      - webhook-network
+
+  # Development service with hot reload
+  webhook-server-dev:
+    build: 
+      context: .
+      target: builder
+    container_name: square-webhook-server-dev
+    ports:
+      - "${WEBHOOK_PORT:-3000}:3000"
+    environment:
+      # Same environment variables as production
+      - SQUARE_WEBHOOK_SIGNATURE_KEY=${SQUARE_WEBHOOK_SIGNATURE_KEY}
+      - SQUARE_ACCESS_TOKEN=${SQUARE_ACCESS_TOKEN}
+      - SQUARE_APPLICATION_ID=${SQUARE_APPLICATION_ID}
+      - SQUARE_ENVIRONMENT=${SQUARE_ENVIRONMENT:-sandbox}
+      - WEBHOOK_PORT=3000
+      - WEBSOCKET_PORT=3001
+      - NODE_ENV=development
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+      - LOG_LEVEL=${LOG_LEVEL:-debug}
+    
+    volumes:
+      # Mount source code for hot reload
+      - ./src:/app/src:ro
+      - ./package.json:/app/package.json:ro
+    
+    command: ["bun", "--watch", "src/index.ts"]
+    
+    profiles:
+      - dev
+    
+    restart: unless-stopped
+    networks:
+      - webhook-network
+
+networks:
+  webhook-network:
+    driver: bridge
