@@ -61,7 +61,15 @@ export async function handleSquareWebhook(request: Request): Promise<Response> {
       });
     }
     
-    const webhookUrl = `${url.protocol}//${url.host}/webhooks/square`;
+    // Use the exact webhook URL registered with Square
+    const webhookUrl = process.env.WEBHOOK_URL || `${url.protocol}//${url.host}/webhooks/square`;
+    
+    log('debug', 'Webhook signature verification details:', {
+      webhookUrl,
+      signaturePresent: !!signature,
+      bodyLength: body.length
+    });
+    
     const isValidSignature = verifySquareWebhookSignature(body, signature, webhookUrl);
     
     if (!isValidSignature) {
