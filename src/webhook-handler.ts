@@ -1,6 +1,6 @@
-import { verifySquareWebhookSignature, processSquareWebhook } from './square-client';
+import { verifySquareWebhookSignature, processSquareWebhook, getSquareOrderById } from './square-client';
 import { broadcastToAdmins } from './websocket-server';
-import { createCorsHeaders, log } from './utils';
+import { createCorsHeaders, log, formatOrderForDisplay } from './utils';
 import type { WebSocketMessage } from './types';
 
 // Handle Square webhook endpoint
@@ -184,6 +184,68 @@ export function handleStatusCheck(): Response {
   return new Response(JSON.stringify(statusData), {
     headers: createCorsHeaders()
   });
+}
+
+// Handle order lookup by ID
+export async function handleOrderLookup(request: Request): Promise<Response> {
+  try {
+    const url = new URL(request.url);
+    const orderId = url.pathname.split('/orders/')[1];
+    
+    if (!orderId) {
+      log('warn', 'Order ID missing in request');
+      return new Response(JSON.stringify({ error: 'Order ID is required' }), {
+        status: 400,
+        headers: createCorsHeaders()
+      });
+    }
+
+    // Validate order ID format (Square order IDs are alphanumeric)
+    if (!/^[a-zA-Z0-9_-]+$/.test(orderId)) {
+      log('warn', `Invalid order ID format: ${orderId}`);
+      return new Response(JSON.stringify({ error: 'Invalid order ID format' }), {
+        status: 400,
+        headers: createCorsHeaders()
+      });
+    }
+
+    log('info', `Looking up order: ${orderId}`);
+
+    const order = await getSquareOrderById(orderId);
+    
+    if (!order) {
+      log('info', `Order not found: ${orderId}`);
+      return new Response(JSON.stringify({ 
+        error: 'Order not found',
+        orderId 
+      }), {
+        status: 404,
+        headers: createCorsHeaders()
+      });
+    }
+
+    // Format order for consistent response
+    const formattedOrder = formatOrderForDisplay(order);
+    
+    log('info', `Order found and returned: ${orderId}`, {
+      state: order.state,
+      itemCount: order.lineItems?.length || 0
+    });
+
+    return new Response(JSON.stringify({
+      success: true,
+      order: formattedOrder
+    }), {
+      headers: createCorsHeaders()
+    });
+
+  } catch (error) {
+    log('error', 'Error in order lookup:', error);
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
+      headers: createCorsHeaders()
+    });
+  }
 }
 
 // Handle CORS preflight requests

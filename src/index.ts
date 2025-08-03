@@ -3,7 +3,8 @@ import {
   handleTestEndpoint, 
   handleHealthCheck, 
   handleStatusCheck, 
-  handleCorsPrelight 
+  handleCorsPrelight,
+  handleOrderLookup 
 } from './webhook-handler';
 import { 
   handleWebSocketConnection, 
@@ -44,32 +45,38 @@ const server = Bun.serve({
     }
     
     // Route handlers
-    switch (path) {
-      case '/webhooks/square':
+    switch (true) {
+      case path === '/webhooks/square':
         if (request.method === 'POST') {
           return handleSquareWebhook(request);
         }
         break;
         
-      case '/test':
+      case path === '/test':
         if (request.method === 'POST') {
           return handleTestEndpoint(request);
         }
         break;
         
-      case '/health':
+      case path === '/health':
         if (request.method === 'GET') {
           return handleHealthCheck();
         }
         break;
         
-      case '/status':
+      case path === '/status':
         if (request.method === 'GET') {
           return handleStatusCheck();
         }
         break;
         
-      case '/':
+      case path.startsWith('/orders/'):
+        if (request.method === 'GET') {
+          return handleOrderLookup(request);
+        }
+        break;
+        
+      case path === '/':
         return new Response(JSON.stringify({
           name: 'Square Webhook & WebSocket Server',
           version: '1.0.0',
@@ -79,6 +86,7 @@ const server = Bun.serve({
             test: '/test (POST)',
             health: '/health (GET)',
             status: '/status (GET)',
+            orders: '/orders/{orderId} (GET)',
             websocket: 'ws://localhost:3000'
           }
         }), {
