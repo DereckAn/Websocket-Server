@@ -1,0 +1,13 @@
+# Bun Test Configuration
+[test]
+# Test files pattern
+preload = ["./tests/helpers/setup.ts"]
+timeout = 5000
+coverage = true
+
+# Environment variables for testing
+[test.env]
+NODE_ENV = "test"
+WEBHOOK_PORT = "3001"
+LOG_LEVEL = "error"
+CORS_ORIGIN = "http://localhost:3000"
