@@ -1,14 +1,14 @@
 {
-  "name": "square-webhook-websocket-server",
+  "name": "gomoku-game-server",
   "version": "1.0.0",
-  "description": "Bun server for Square webhooks with WebSocket broadcasting for real-time order notifications",
-  "module": "src/index.ts",
+  "description": "High-performance Gomoku AI server with real-time multiplayer using MVC architecture",
+  "module": "src/server.ts",
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bun --watch src/index.ts",
-    "start": "bun src/index.ts",
-    "build": "bun build src/index.ts --outdir=dist --target=bun",
+    "dev": "bun --watch src/server.ts",
+    "start": "bun src/server.ts",
+    "build": "bun build src/server.ts --outdir=dist --target=bun",
     "test": "bun test",
     "test:watch": "bun test --watch",
     "type-check": "tsc --noEmit",
@@ -25,13 +25,14 @@
     "bun": ">=1.0.0"
   },
   "keywords": [
-    "square",
-    "webhook",
+    "gomoku",
+    "ai",
+    "game",
     "websocket",
     "bun",
     "real-time",
-    "orders",
-    "restaurant"
+    "minimax",
+    "mvc"
   ],
   "author": "Your Name",
   "license": "MIT"
