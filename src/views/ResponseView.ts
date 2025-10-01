@@ -13,7 +13,6 @@
  * - Automatic metadata inclusion
  */
 export class ResponseView {
-
   // =================================================================
   // SUCCESS RESPONSES
   // =================================================================
@@ -31,12 +30,12 @@ export class ResponseView {
       data,
       ...(message && { message }),
       ...(metadata && { metadata }),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     return new Response(JSON.stringify(response), {
       status: 200,
-      headers: this.getStandardHeaders()
+      headers: this.getStandardHeaders(),
     });
   }
 
@@ -52,26 +51,32 @@ export class ResponseView {
       success: true,
       data,
       ...(message && { message }),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     return new Response(JSON.stringify(response), {
       status,
-      headers: this.getStandardHeaders()
+      headers: this.getStandardHeaders(),
     });
   }
 
   /**
    * Creates a 201 Created response
    */
-  static created<T>(data: T, message: string = 'Resource created successfully'): Response {
+  static created<T>(
+    data: T,
+    message: string = "Resource created successfully"
+  ): Response {
     return this.successWithStatus(data, 201, message);
   }
 
   /**
    * Creates a 202 Accepted response (for async operations)
    */
-  static accepted<T>(data: T, message: string = 'Request accepted for processing'): Response {
+  static accepted<T>(
+    data: T,
+    message: string = "Request accepted for processing"
+  ): Response {
     return this.successWithStatus(data, 202, message);
   }
 
@@ -81,7 +86,7 @@ export class ResponseView {
   static noContent(): Response {
     return new Response(null, {
       status: 204,
-      headers: this.getStandardHeaders()
+      headers: this.getStandardHeaders(),
     });
   }
 
@@ -103,12 +108,12 @@ export class ResponseView {
       error,
       code: code || this.getDefaultErrorCode(status),
       ...(details && { details }),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     return new Response(JSON.stringify(response), {
       status,
-      headers: this.getStandardHeaders()
+      headers: this.getStandardHeaders(),
     });
   }
 
@@ -116,67 +121,67 @@ export class ResponseView {
    * Creates a 400 Bad Request response
    */
   static badRequest(error: string, details?: any): Response {
-    return this.error(error, 400, 'BAD_REQUEST', details);
+    return this.error(error, 400, "BAD_REQUEST", details);
   }
 
   /**
    * Creates a 401 Unauthorized response
    */
-  static unauthorized(error: string = 'Unauthorized'): Response {
-    return this.error(error, 401, 'UNAUTHORIZED');
+  static unauthorized(error: string = "Unauthorized"): Response {
+    return this.error(error, 401, "UNAUTHORIZED");
   }
 
   /**
    * Creates a 403 Forbidden response
    */
-  static forbidden(error: string = 'Forbidden'): Response {
-    return this.error(error, 403, 'FORBIDDEN');
+  static forbidden(error: string = "Forbidden"): Response {
+    return this.error(error, 403, "FORBIDDEN");
   }
 
   /**
    * Creates a 404 Not Found response
    */
-  static notFound(resource: string = 'Resource'): Response {
-    return this.error(`${resource} not found`, 404, 'NOT_FOUND');
+  static notFound(resource: string = "Resource"): Response {
+    return this.error(`${resource} not found`, 404, "NOT_FOUND");
   }
 
   /**
    * Creates a 409 Conflict response
    */
   static conflict(error: string): Response {
-    return this.error(error, 409, 'CONFLICT');
+    return this.error(error, 409, "CONFLICT");
   }
 
   /**
    * Creates a 422 Unprocessable Entity response
    */
   static unprocessableEntity(error: string, details?: any): Response {
-    return this.error(error, 422, 'UNPROCESSABLE_ENTITY', details);
+    return this.error(error, 422, "UNPROCESSABLE_ENTITY", details);
   }
 
   /**
    * Creates a 429 Too Many Requests response
    */
   static tooManyRequests(
-    error: string = 'Too many requests',
+    error: string = "Too many requests",
     retryAfter?: number
   ): Response {
     const headers = this.getStandardHeaders();
     if (retryAfter) {
-      headers['Retry-After'] = retryAfter.toString();
+      headers["Retry-After"] = retryAfter.toString();
     }
 
     const response = {
       success: false,
       error,
-      code: 'RATE_LIMIT_EXCEEDED',
+      code: "RATE_LIMIT_EXCEEDED",
       ...(retryAfter && { retryAfter }),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     return new Response(JSON.stringify(response), {
       status: 429,
-      headers
+      headers,
     });
   }
 
@@ -184,11 +189,11 @@ export class ResponseView {
    * Creates a 500 Internal Server Error response
    */
   static internalServerError(
-    error: string = 'Internal server error',
+    error: string = "Internal server error",
     requestId?: string
   ): Response {
-    return this.error(error, 500, 'INTERNAL_SERVER_ERROR', {
-      ...(requestId && { requestId })
+    return this.error(error, 500, "INTERNAL_SERVER_ERROR", {
+      ...(requestId && { requestId }),
     });
   }
 
@@ -196,9 +201,9 @@ export class ResponseView {
    * Creates a 503 Service Unavailable response
    */
   static serviceUnavailable(
-    error: string = 'Service temporarily unavailable'
+    error: string = "Service temporarily unavailable"
   ): Response {
-    return this.error(error, 503, 'SERVICE_UNAVAILABLE');
+    return this.error(error, 503, "SERVICE_UNAVAILABLE");
   }
 
   // =================================================================
@@ -209,8 +214,8 @@ export class ResponseView {
    * Creates a validation error response
    */
   static validationError(errors: string[]): Response {
-    return this.badRequest('Validation failed', {
-      validationErrors: errors
+    return this.badRequest("Validation failed", {
+      validationErrors: errors,
     });
   }
 
@@ -231,7 +236,7 @@ export class ResponseView {
   static gameError(error: string, gameId?: string): Response {
     return this.unprocessableEntity(error, {
       ...(gameId && { gameId }),
-      type: 'GAME_ERROR'
+      type: "GAME_ERROR",
     });
   }
 
@@ -248,7 +253,7 @@ export class ResponseView {
   static websocketError(error: string, connectionId?: string): Response {
     return this.badRequest(`WebSocket error: ${error}`, {
       ...(connectionId && { connectionId }),
-      type: 'WEBSOCKET_ERROR'
+      type: "WEBSOCKET_ERROR",
     });
   }
 
@@ -260,7 +265,7 @@ export class ResponseView {
    * Creates a healthy response
    */
   static healthy(data: any): Response {
-    return this.success(data, 'Service is healthy');
+    return this.success(data, "Service is healthy");
   }
 
   /**
@@ -270,14 +275,14 @@ export class ResponseView {
     const response = {
       success: true,
       data,
-      message: 'Service is degraded',
+      message: "Service is degraded",
       warnings: issues,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     return new Response(JSON.stringify(response), {
       status: 200,
-      headers: this.getStandardHeaders()
+      headers: this.getStandardHeaders(),
     });
   }
 
@@ -287,15 +292,15 @@ export class ResponseView {
   static unhealthy(issues: string[]): Response {
     const response = {
       success: false,
-      error: 'Service is unhealthy',
-      code: 'SERVICE_UNAVAILABLE',
+      error: "Service is unhealthy",
+      code: "SERVICE_UNAVAILABLE",
       issues,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     return new Response(JSON.stringify(response), {
       status: 503,
-      headers: this.getStandardHeaders()
+      headers: this.getStandardHeaders(),
     });
   }
 
@@ -319,8 +324,8 @@ export class ResponseView {
       pagination: {
         ...pagination,
         hasNext: pagination.page < pagination.totalPages,
-        hasPrev: pagination.page > 1
-      }
+        hasPrev: pagination.page > 1,
+      },
     });
   }
 
@@ -333,14 +338,11 @@ export class ResponseView {
    */
   private static getStandardHeaders(): Record<string, string> {
     return {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
-      'Access-Control-Max-Age': '86400', // 24 hours
-      'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'DENY',
-      'X-XSS-Protection': '1; mode=block'
+      "Content-Type": "application/json",
+      // CORS headers removed - handled by middleware in routes/index.ts
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "X-XSS-Protection": "1; mode=block",
     };
   }
 
@@ -349,20 +351,20 @@ export class ResponseView {
    */
   private static getDefaultErrorCode(status: number): string {
     const codes: Record<number, string> = {
-      400: 'BAD_REQUEST',
-      401: 'UNAUTHORIZED',
-      403: 'FORBIDDEN',
-      404: 'NOT_FOUND',
-      409: 'CONFLICT',
-      422: 'UNPROCESSABLE_ENTITY',
-      429: 'RATE_LIMIT_EXCEEDED',
-      500: 'INTERNAL_SERVER_ERROR',
-      502: 'BAD_GATEWAY',
-      503: 'SERVICE_UNAVAILABLE',
-      504: 'GATEWAY_TIMEOUT'
+      400: "BAD_REQUEST",
+      401: "UNAUTHORIZED",
+      403: "FORBIDDEN",
+      404: "NOT_FOUND",
+      409: "CONFLICT",
+      422: "UNPROCESSABLE_ENTITY",
+      429: "RATE_LIMIT_EXCEEDED",
+      500: "INTERNAL_SERVER_ERROR",
+      502: "BAD_GATEWAY",
+      503: "SERVICE_UNAVAILABLE",
+      504: "GATEWAY_TIMEOUT",
     };
 
-    return codes[status] || 'UNKNOWN_ERROR';
+    return codes[status] || "UNKNOWN_ERROR";
   }
 
   /**
@@ -370,12 +372,12 @@ export class ResponseView {
    */
   static withRequestId(response: Response, requestId: string): Response {
     const headers = new Headers(response.headers);
-    headers.set('X-Request-ID', requestId);
+    headers.set("X-Request-ID", requestId);
 
     return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
-      headers
+      headers,
     });
   }
 
@@ -388,12 +390,15 @@ export class ResponseView {
     isPublic: boolean = true
   ): Response {
     const headers = new Headers(response.headers);
-    headers.set('Cache-Control', `${isPublic ? 'public' : 'private'}, max-age=${maxAge}`);
+    headers.set(
+      "Cache-Control",
+      `${isPublic ? "public" : "private"}, max-age=${maxAge}`
+    );
 
     return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
-      headers
+      headers,
     });
   }
 
@@ -402,14 +407,14 @@ export class ResponseView {
    */
   static withNoCacheHeaders(response: Response): Response {
     const headers = new Headers(response.headers);
-    headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-    headers.set('Pragma', 'no-cache');
-    headers.set('Expires', '0');
+    headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
+    headers.set("Pragma", "no-cache");
+    headers.set("Expires", "0");
 
     return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
-      headers
+      headers,
     });
   }
 }

@@ -26,19 +26,22 @@ const getAllowedOrigins = (): string[] => {
     );
   }
 
-  // Production origins
+  // Environment-based origins (for both dev and production)
   if (process.env.CORS_ORIGIN) {
-    const productionOrigins = process.env.CORS_ORIGIN.split(',');
-    origins.push(...productionOrigins);
+    const envOrigins = process.env.CORS_ORIGIN.split(',').map(origin => origin.trim());
+    origins.push(...envOrigins);
   }
 
   // Default production patterns (Vercel)
-  origins.push(
-    'https://*.vercel.app',
-    'https://your-app.vercel.app' // Replace with actual domain
-  );
+  if (process.env.NODE_ENV === 'production') {
+    origins.push(
+      'https://*.vercel.app',
+      'https://your-app.vercel.app' // Replace with actual domain
+    );
+  }
 
-  return origins;
+  // Remove duplicates and return
+  return [...new Set(origins)];
 };
 
 /**
@@ -109,9 +112,21 @@ export const handleCorsPrelight = (request: Request): Response => {
 };
 
 /**
- * Adds CORS headers to any response
+ * Adds CORS headers to any response (only if they don't already exist)
  */
 export const addCorsHeaders = (response: Response, request: Request): Response => {
+  const existingHeaders = Object.fromEntries(response.headers.entries());
+
+  // Check if response already has CORS headers
+  const hasCorsHeaders = existingHeaders['Access-Control-Allow-Origin'] ||
+                        existingHeaders['access-control-allow-origin'];
+
+  if (hasCorsHeaders) {
+    // Response already has CORS headers, don't add more
+    console.log('🔗 Response already has CORS headers, skipping middleware');
+    return response;
+  }
+
   const origin = request.headers.get('origin');
   const corsHeaders = createCorsHeaders(origin);
 
@@ -120,11 +135,12 @@ export const addCorsHeaders = (response: Response, request: Request): Response =
     status: response.status,
     statusText: response.statusText,
     headers: {
-      ...Object.fromEntries(response.headers.entries()),
+      ...existingHeaders,
       ...corsHeaders
     }
   });
 
+  console.log('🔗 Added CORS headers via middleware');
   return newResponse;
 };
 

@@ -66,8 +66,8 @@ export class WebSocketService {
     }
     this.roomSubscribers.get(roomId)!.add(connectionId);
 
-    // Setup WebSocket event handlers
-    this.setupWebSocketHandlers(ws, connectionId);
+    // WebSocket handlers are defined in server.ts (Bun-style)
+    // No need to setup handlers here - they're already configured
 
     // Send welcome message
     this.sendToConnection(connectionId, {
@@ -87,35 +87,8 @@ export class WebSocketService {
     return connectionId;
   }
 
-  /**
-   * Sets up WebSocket event handlers
-   */
-  private static setupWebSocketHandlers(ws: any, connectionId: string): void {
-    // Handle incoming messages
-    ws.on('message', (data: any) => {
-      try {
-        const message = JSON.parse(data.toString());
-        this.handleIncomingMessage(connectionId, message);
-      } catch (error) {
-        console.error('❌ Invalid WebSocket message:', error);
-        this.sendError(connectionId, 'Invalid message format');
-      }
-    });
-
-    // Handle connection close
-    ws.on('close', () => {
-      this.handleDisconnection(connectionId);
-    });
-
-    // Handle connection errors
-    ws.on('error', (error: any) => {
-      console.error(`❌ WebSocket error for ${connectionId}:`, error);
-      this.handleDisconnection(connectionId);
-    });
-
-    // Setup ping/pong for connection health
-    this.setupHeartbeat(ws, connectionId);
-  }
+  // NOTE: WebSocket handlers are now defined in server.ts using Bun's native API
+  // message(ws, message), close(ws), open(ws) are handled there
 
   /**
    * Handles WebSocket disconnection
@@ -340,10 +313,15 @@ export class WebSocketService {
    */
   static sendToConnection(connectionId: string, message: WSMessage): boolean {
     const connection = this.connections.get(connectionId);
-    if (!connection) return false;
+    if (!connection) {
+      console.log(`🔌 ❌ Connection ${connectionId} not found for message:`, message.type);
+      return false;
+    }
 
     try {
-      connection.ws.send(JSON.stringify(message));
+      const messageStr = JSON.stringify(message);
+      console.log(`🔌 📤 Sending to ${connectionId}:`, message.type, message.data ? `(${Object.keys(message.data).join(', ')})` : '');
+      connection.ws.send(messageStr);
       return true;
     } catch (error) {
       console.error(`❌ Failed to send message to ${connectionId}:`, error);
@@ -404,7 +382,7 @@ export class WebSocketService {
 
       // Check if connection is still alive
       const timeSinceLastPing = Date.now() - connection.lastPing.getTime();
-      if (timeSinceLastPing > GAME_CONFIG.WEBSOCKET_PING_INTERVAL * 2) {
+      if (timeSinceLastPing > GAME_CONFIG.WEBSOCKET_PING_INTERVAL * 4) {
         console.log(`💔 Connection ${connectionId} timed out`);
         this.handleDisconnection(connectionId);
         clearInterval(interval);
@@ -433,7 +411,7 @@ export class WebSocketService {
     for (const [connectionId, connection] of this.connections.entries()) {
       const timeSinceLastPing = now - connection.lastPing.getTime();
 
-      if (timeSinceLastPing > GAME_CONFIG.WEBSOCKET_PING_INTERVAL * 3) {
+      if (timeSinceLastPing > GAME_CONFIG.WEBSOCKET_PING_INTERVAL * 5) {
         console.log(`🧹 Cleaning up stale connection: ${connectionId}`);
         this.handleDisconnection(connectionId);
         cleanedCount++;

@@ -25,38 +25,53 @@ import GameModel from '../models/GameModel';
  */
 export class AIService {
 
-  // AI Configuration - Always EXTREME difficulty
+  // AI Configuration - NEARLY UNBEATABLE difficulty
   private static readonly AI_CONFIG = {
-    maxDepth: 12,                    // Deep search for strong play
-    maxTimePerMove: 2000,           // 2 seconds max (quick response)
+    maxDepth: 12,                   // Deep search but reasonable performance
+    maxTimePerMove: 5000,           // 5 seconds for thorough analysis
     useTranspositionTable: true,    // Cache evaluated positions
     useIterativeDeepening: true,    // Gradually increase search depth
     useAlphaBetaPruning: true,      // Skip irrelevant branches
     usePatternRecognition: true,    // Recognize common patterns
-    aggressiveness: 0.9,            // Favor attacking moves
+    aggressiveness: 0.9,            // Balanced aggressive attacking
     defensiveness: 1.2,             // Strong defensive play
+    threatDetectionDepth: 8,        // Very deep threat analysis
+    openingBookEnabled: true,       // Use opening book for early game
+    useThreatSpaceSearch: true,     // Advanced threat space analysis
+    useVCF: true,                   // Victory by Continuous Force
+    useVCT: true,                   // Victory by Continuous Threat
   };
 
-  // Pattern evaluation values (strategic importance)
+  // Pattern evaluation values (strategic importance) - Enhanced for unbeatable AI
   private static readonly PATTERN_VALUES = {
     // Winning patterns
-    FIVE_IN_ROW: 1000000,           // Immediate win
-    OPEN_FOUR: 100000,              // Unstoppable (4 with both ends open)
+    FIVE_IN_ROW: 10000000,          // Immediate win (highest priority)
+    OPEN_FOUR: 1000000,             // Unstoppable (4 with both ends open)
 
-    // Threatening patterns
-    CLOSED_FOUR: 10000,             // 4 in a row, one end blocked
-    DOUBLE_OPEN_THREE: 8000,        // Two open threes (fork)
-    OPEN_THREE: 1000,               // 3 in a row, both ends open
+    // Critical threatening patterns
+    CLOSED_FOUR: 500000,            // 4 in a row, one end blocked (must respond)
+    DOUBLE_OPEN_THREE: 100000,      // Two open threes (fork - game over)
+    OPEN_THREE: 50000,              // 3 in a row, both ends open (very strong)
+    BROKEN_FOUR: 40000,             // 4 with gap (X_XXX or XXX_X)
+
+    // Advanced threat patterns
+    DOUBLE_CLOSED_THREE: 25000,     // Two closed threes (strong attack)
+    TRIPLE_OPEN_TWO: 15000,         // Three open twos (building power)
+    OPEN_THREE_PLUS_TWO: 12000,     // Open three + open two combo
+    SWORD_PATTERN: 10000,           // Special attacking pattern
 
     // Building patterns
-    CLOSED_THREE: 100,              // 3 in a row, one end blocked
-    DOUBLE_OPEN_TWO: 80,            // Two open twos
-    OPEN_TWO: 10,                   // 2 in a row, both ends open
-    CLOSED_TWO: 1,                  // 2 in a row, one end blocked
+    CLOSED_THREE: 5000,             // 3 in a row, one end blocked
+    DOUBLE_OPEN_TWO: 2000,          // Two open twos
+    OPEN_TWO: 500,                  // 2 in a row, both ends open
+    CLOSED_TWO: 50,                 // 2 in a row, one end blocked
+    SINGLE_STONE: 10,               // Single stone
 
     // Positional values
-    CENTER_BONUS: 5,                // Favor center positions
-    PROXIMITY_BONUS: 3,             // Stay near existing stones
+    CENTER_BONUS: 100,              // Strong center preference
+    PROXIMITY_BONUS: 50,            // Stay near existing stones
+    CORNER_PENALTY: -20,            // Avoid corners early game
+    EDGE_PENALTY: -10,              // Avoid edges early game
   };
 
   // Transposition table for caching evaluations
@@ -94,7 +109,79 @@ export class AIService {
     try {
       console.log(`🤖 AI (${aiSymbol}) calculating move for game ${gameState.id}...`);
 
-      // Quick win/block checks first (performance optimization)
+      // 1. Opening book moves (early game)
+      if (this.AI_CONFIG.openingBookEnabled) {
+        const openingMove = this.getOpeningBookMove(gameState.board, aiSymbol);
+        if (openingMove) {
+          const timeElapsed = Date.now() - startTime;
+          console.log(`📚 AI using opening book move in ${timeElapsed}ms: (${openingMove.row}, ${openingMove.col})`);
+
+          return {
+            row: openingMove.row,
+            col: openingMove.col,
+            score: this.PATTERN_VALUES.CENTER_BONUS,
+            timeElapsed,
+            nodesSearched: 1,
+            depth: 1,
+            confidence: 0.9
+          };
+        }
+      }
+
+      // 2. Advanced threat detection
+      if (this.AI_CONFIG.useThreatSpaceSearch) {
+        const threats = this.detectAdvancedThreats(gameState.board, aiSymbol);
+
+        // Prioritize VCF (forced win)
+        if (threats.vcfThreat) {
+          const timeElapsed = Date.now() - startTime;
+          console.log(`🗡️ AI found VCF threat in ${timeElapsed}ms: (${threats.vcfThreat.row}, ${threats.vcfThreat.col})`);
+
+          return {
+            row: threats.vcfThreat.row,
+            col: threats.vcfThreat.col,
+            score: this.PATTERN_VALUES.DOUBLE_OPEN_THREE,
+            timeElapsed,
+            nodesSearched: 1,
+            depth: 1,
+            confidence: 0.95
+          };
+        }
+
+        // Then fork threats
+        if (threats.forkThreat) {
+          const timeElapsed = Date.now() - startTime;
+          console.log(`🔱 AI found fork threat in ${timeElapsed}ms: (${threats.forkThreat.row}, ${threats.forkThreat.col})`);
+
+          return {
+            row: threats.forkThreat.row,
+            col: threats.forkThreat.col,
+            score: this.PATTERN_VALUES.DOUBLE_OPEN_THREE * 0.8,
+            timeElapsed,
+            nodesSearched: 1,
+            depth: 1,
+            confidence: 0.9
+          };
+        }
+
+        // Finally double threats
+        if (threats.doubleThreat) {
+          const timeElapsed = Date.now() - startTime;
+          console.log(`⚔️ AI found double threat in ${timeElapsed}ms: (${threats.doubleThreat.row}, ${threats.doubleThreat.col})`);
+
+          return {
+            row: threats.doubleThreat.row,
+            col: threats.doubleThreat.col,
+            score: this.PATTERN_VALUES.DOUBLE_OPEN_THREE * 0.6,
+            timeElapsed,
+            nodesSearched: 1,
+            depth: 1,
+            confidence: 0.85
+          };
+        }
+      }
+
+      // 3. Quick win/block checks (immediate tactical moves)
       const immediateMove = this.findImmediateMove(gameState.board, aiSymbol);
       if (immediateMove) {
         const timeElapsed = Date.now() - startTime;
@@ -120,7 +207,7 @@ export class AIService {
       for (let depth = 1; depth <= this.AI_CONFIG.maxDepth; depth++) {
         const timeElapsed = Date.now() - startTime;
 
-        // Time limit check
+        // Time limit check (use 80% of available time for iterative deepening)
         if (timeElapsed > this.AI_CONFIG.maxTimePerMove * 0.8) {
           console.log(`⏰ AI time limit reached at depth ${depth}`);
           break;
@@ -144,6 +231,12 @@ export class AIService {
           if (bestScore >= this.PATTERN_VALUES.OPEN_FOUR) {
             console.log(`🎯 AI found winning move at depth ${depth}`);
             break;
+          }
+
+          // If we found a very strong position, we can be confident
+          if (bestScore >= this.PATTERN_VALUES.OPEN_THREE * 2) {
+            console.log(`💪 AI found strong position at depth ${depth}`);
+            // Continue searching but with high confidence
           }
         }
       }
@@ -247,15 +340,9 @@ export class AIService {
         }
       }
 
-      // Check for immediate win/loss
-      const gameResult = GameModel.checkWinCondition(
-        newBoard,
-        move.row,
-        move.col,
-        maximizingPlayer ? aiSymbol : this.getOpponent(aiSymbol)
-      );
-
-      if (gameResult.isWin) {
+      // Check for immediate win/loss using enhanced detection
+      const currentPlayerForMove = maximizingPlayer ? aiSymbol : this.getOpponent(aiSymbol);
+      if (this.isWinningMove(newBoard, move.row, move.col, currentPlayerForMove)) {
         const winScore = maximizingPlayer
           ? this.PATTERN_VALUES.FIVE_IN_ROW - (this.AI_CONFIG.maxDepth - depth)
           : -this.PATTERN_VALUES.FIVE_IN_ROW + (this.AI_CONFIG.maxDepth - depth);
@@ -330,8 +417,17 @@ export class AIService {
     const aiScore = this.evaluatePlayerPosition(board, aiSymbol);
     const opponentScore = this.evaluatePlayerPosition(board, opponent);
 
-    // AI advantage = AI strength - Opponent strength
-    return aiScore - opponentScore * this.AI_CONFIG.defensiveness;
+    // Enhanced evaluation: AI advantage with threat detection bonus
+    let evaluation = aiScore - opponentScore * this.AI_CONFIG.defensiveness;
+
+    // Bonus for creating multiple threats
+    const aiThreats = this.countWinningThreats(board, aiSymbol);
+    const opponentThreats = this.countWinningThreats(board, this.getOpponent(aiSymbol));
+
+    evaluation += aiThreats * this.PATTERN_VALUES.OPEN_THREE * 0.1;
+    evaluation -= opponentThreats * this.PATTERN_VALUES.OPEN_THREE * 0.2; // Defense is more important
+
+    return evaluation;
   }
 
   /**
@@ -361,6 +457,7 @@ export class AIService {
 
   /**
    * Analyzes a pattern starting from a position in a direction
+   * Enhanced version with better open-end detection
    */
   private static analyzePattern(
     board: Board,
@@ -373,27 +470,32 @@ export class AIService {
 
     let length = 1; // Count the starting position
     let openEnds = 0;
+    let forwardBlocked = false;
+    let backwardBlocked = false;
 
     // Check forward direction
     let row = startRow + deltaRow;
     let col = startCol + deltaCol;
     while (
       row >= 0 && row < GAME_CONFIG.BOARD_SIZE &&
-      col >= 0 && col < GAME_CONFIG.BOARD_SIZE &&
-      board[row]?.[col] === player
+      col >= 0 && col < GAME_CONFIG.BOARD_SIZE
     ) {
-      length++;
+      if (board[row]?.[col] === player) {
+        length++;
+      } else if (board[row]?.[col] === null) {
+        openEnds++;
+        break;
+      } else {
+        forwardBlocked = true;
+        break;
+      }
       row += deltaRow;
       col += deltaCol;
     }
 
-    // Check if forward end is open
-    if (
-      row >= 0 && row < GAME_CONFIG.BOARD_SIZE &&
-      col >= 0 && col < GAME_CONFIG.BOARD_SIZE &&
-      board[row]?.[col] === null
-    ) {
-      openEnds++;
+    // If we hit the board edge, it's blocked
+    if (row < 0 || row >= GAME_CONFIG.BOARD_SIZE || col < 0 || col >= GAME_CONFIG.BOARD_SIZE) {
+      forwardBlocked = true;
     }
 
     // Check backward direction
@@ -401,50 +503,55 @@ export class AIService {
     col = startCol - deltaCol;
     while (
       row >= 0 && row < GAME_CONFIG.BOARD_SIZE &&
-      col >= 0 && col < GAME_CONFIG.BOARD_SIZE &&
-      board[row]?.[col] === player
+      col >= 0 && col < GAME_CONFIG.BOARD_SIZE
     ) {
-      length++;
+      if (board[row]?.[col] === player) {
+        length++;
+      } else if (board[row]?.[col] === null) {
+        if (!forwardBlocked) openEnds++; // Only count if forward isn't already counted
+        break;
+      } else {
+        backwardBlocked = true;
+        break;
+      }
       row -= deltaRow;
       col -= deltaCol;
     }
 
-    // Check if backward end is open
-    if (
-      row >= 0 && row < GAME_CONFIG.BOARD_SIZE &&
-      col >= 0 && col < GAME_CONFIG.BOARD_SIZE &&
-      board[row]?.[col] === null
-    ) {
-      openEnds++;
+    // If we hit the board edge, it's blocked
+    if (row < 0 || row >= GAME_CONFIG.BOARD_SIZE || col < 0 || col >= GAME_CONFIG.BOARD_SIZE) {
+      backwardBlocked = true;
     }
 
     return {
       length,
       openEnds,
-      blocked: openEnds === 0
+      blocked: forwardBlocked && backwardBlocked
     };
   }
 
   /**
-   * Gets strategic value for a pattern
+   * Gets strategic value for a pattern - Enhanced version
    */
   private static getPatternValue(pattern: { length: number; openEnds: number; blocked: boolean }): number {
+    if (pattern.length >= 5) return this.PATTERN_VALUES.FIVE_IN_ROW;
     if (pattern.blocked) return 0;
 
     switch (pattern.length) {
-      case 5: return this.PATTERN_VALUES.FIVE_IN_ROW;
       case 4:
-        return pattern.openEnds === 2
+        return pattern.openEnds >= 1
           ? this.PATTERN_VALUES.OPEN_FOUR
           : this.PATTERN_VALUES.CLOSED_FOUR;
       case 3:
-        return pattern.openEnds === 2
+        return pattern.openEnds >= 2
           ? this.PATTERN_VALUES.OPEN_THREE
           : this.PATTERN_VALUES.CLOSED_THREE;
       case 2:
-        return pattern.openEnds === 2
+        return pattern.openEnds >= 2
           ? this.PATTERN_VALUES.OPEN_TWO
           : this.PATTERN_VALUES.CLOSED_TWO;
+      case 1:
+        return pattern.openEnds >= 2 ? this.PATTERN_VALUES.SINGLE_STONE : 0;
       default:
         return 0;
     }
@@ -465,18 +572,56 @@ export class AIService {
 
   /**
    * Generates moves ordered by strategic importance
-   *
-   * Better moves first = better alpha-beta pruning
+   * Enhanced with comprehensive threat analysis
    */
   private static generateOrderedMoves(board: Board, player: GameSymbol): Position[] {
     const moves: Array<{ position: Position; priority: number }> = [];
+    const opponent = this.getOpponent(player);
 
     // Only consider positions near existing stones (huge optimization)
     const relevantPositions = this.getRelevantPositions(board);
 
     for (const pos of relevantPositions) {
       if (board[pos.row]?.[pos.col] === null) {
-        const priority = this.evaluateMoveImportance(board, pos.row, pos.col, player);
+        let priority = 0;
+
+        // Test placing our stone
+        const testBoard = GameModel.copyBoard(board);
+        if (testBoard[pos.row]) {
+          testBoard[pos.row][pos.col] = player;
+        }
+
+        // Priority 1: Winning moves (highest)
+        if (GameModel.checkWinCondition(testBoard, pos.row, pos.col, player).isWin) {
+          priority += 10000000;
+        }
+
+        // Priority 2: Multiple threat creation
+        const threats = this.countThreats(testBoard, pos.row, pos.col, player);
+        priority += threats * 100000;
+
+        // Priority 3: Position evaluation for our move
+        priority += this.evaluateMovePosition(testBoard, pos.row, pos.col, player);
+
+        // Reset board and test opponent blocking
+        if (testBoard[pos.row]) {
+          testBoard[pos.row][pos.col] = opponent;
+        }
+
+        // Priority 4: Blocking opponent winning moves
+        if (GameModel.checkWinCondition(testBoard, pos.row, pos.col, opponent).isWin) {
+          priority += 5000000;
+        }
+
+        // Priority 5: Blocking opponent threats
+        const opponentThreats = this.countThreats(testBoard, pos.row, pos.col, opponent);
+        priority += opponentThreats * 50000;
+
+        // Priority 6: Center preference (small bonus)
+        const center = Math.floor(GAME_CONFIG.BOARD_SIZE / 2);
+        const centerDistance = Math.abs(pos.row - center) + Math.abs(pos.col - center);
+        priority += Math.max(0, 20 - centerDistance);
+
         moves.push({ position: pos, priority });
       }
     }
@@ -485,31 +630,40 @@ export class AIService {
     moves.sort((a, b) => b.priority - a.priority);
 
     // Return top moves only (performance optimization)
-    const maxMoves = Math.min(moves.length, 20);
+    const maxMoves = Math.min(moves.length, 25);
     return moves.slice(0, maxMoves).map(m => m.position);
   }
 
   /**
    * Gets positions that are strategically relevant
-   * (near existing stones - huge performance boost)
+   * Enhanced to consider larger search radius for stronger play
    */
   private static getRelevantPositions(board: Board): Position[] {
     const positions = new Set<string>();
 
+    // Check if board is empty
+    if (this.isBoardEmpty(board)) {
+      const center = Math.floor(GAME_CONFIG.BOARD_SIZE / 2);
+      return [{ row: center, col: center }];
+    }
+
     for (let row = 0; row < GAME_CONFIG.BOARD_SIZE; row++) {
       for (let col = 0; col < GAME_CONFIG.BOARD_SIZE; col++) {
         if (board[row]?.[col] !== null) {
-          // Add positions around this stone
+          // Add positions around this stone (radius 2 for stronger analysis)
           for (let dr = -2; dr <= 2; dr++) {
             for (let dc = -2; dc <= 2; dc++) {
               const newRow = row + dr;
               const newCol = col + dc;
+              const key = `${newRow},${newCol}`;
 
               if (
                 newRow >= 0 && newRow < GAME_CONFIG.BOARD_SIZE &&
-                newCol >= 0 && newCol < GAME_CONFIG.BOARD_SIZE
+                newCol >= 0 && newCol < GAME_CONFIG.BOARD_SIZE &&
+                board[newRow]?.[newCol] === null &&
+                !positions.has(key)
               ) {
-                positions.add(`${newRow},${newCol}`);
+                positions.add(key);
               }
             }
           }
@@ -517,20 +671,34 @@ export class AIService {
       }
     }
 
-    // If no stones on board, start from center
-    if (positions.size === 0) {
-      const center = Math.floor(GAME_CONFIG.BOARD_SIZE / 2);
-      positions.add(`${center},${center}`);
-    }
-
     return Array.from(positions).map(pos => {
       const [row, col] = pos.split(',').map(Number);
       return { row: row || 0, col: col || 0 };
-    }).filter(pos => pos.row !== undefined && pos.col !== undefined);
+    }).filter(pos =>
+      pos.row !== undefined &&
+      pos.col !== undefined &&
+      pos.row >= 0 && pos.row < GAME_CONFIG.BOARD_SIZE &&
+      pos.col >= 0 && pos.col < GAME_CONFIG.BOARD_SIZE
+    );
+  }
+
+  /**
+   * Checks if the board is empty
+   */
+  private static isBoardEmpty(board: Board): boolean {
+    for (let row = 0; row < GAME_CONFIG.BOARD_SIZE; row++) {
+      for (let col = 0; col < GAME_CONFIG.BOARD_SIZE; col++) {
+        if (board[row]?.[col] !== null) {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 
   /**
    * Evaluates how important a move is (for move ordering)
+   * Enhanced with comprehensive position analysis
    */
   private static evaluateMoveImportance(
     board: Board,
@@ -544,16 +712,48 @@ export class AIService {
       testBoard[row][col] = player;
     }
 
-    // Quick evaluation
+    // Comprehensive evaluation
     let importance = 0;
 
-    // Check for immediate threats/opportunities
+    // Check for immediate threats/opportunities in all directions
     for (const [deltaRow, deltaCol] of DIRECTIONS) {
       const pattern = this.analyzePattern(testBoard, row, col, deltaRow, deltaCol, player);
       importance += this.getPatternValue(pattern);
     }
 
     return importance;
+  }
+
+  /**
+   * Counts threats created by a move
+   */
+  private static countThreats(board: Board, row: number, col: number, player: GameSymbol): number {
+    let threats = 0;
+
+    for (const [deltaRow, deltaCol] of DIRECTIONS) {
+      const pattern = this.analyzePattern(board, row, col, deltaRow, deltaCol, player);
+
+      // Count open threes and fours as threats
+      if (pattern.length === 4 && pattern.openEnds >= 1) threats += 3;
+      if (pattern.length === 3 && pattern.openEnds >= 2) threats += 1;
+    }
+
+    return threats;
+  }
+
+  /**
+   * Evaluates specific move position value
+   */
+  private static evaluateMovePosition(board: Board, row: number, col: number, player: GameSymbol): number {
+    let score = 0;
+
+    // Evaluate the position if this move is made
+    for (const [deltaRow, deltaCol] of DIRECTIONS) {
+      const pattern = this.analyzePattern(board, row, col, deltaRow, deltaCol, player);
+      score += this.getPatternValue(pattern);
+    }
+
+    return score;
   }
 
   // =================================================================
@@ -621,8 +821,26 @@ export class AIService {
    * Finds a move that creates an open four (unstoppable threat)
    */
   private static findOpenFourMove(board: Board, player: GameSymbol): Position | null {
-    // This would be more complex - checking for patterns that create open fours
-    // For now, simplified implementation
+    const relevantPositions = this.getRelevantPositions(board);
+
+    for (const pos of relevantPositions) {
+      if (board[pos.row]?.[pos.col] === null) {
+        // Test placing stone here
+        const testBoard = GameModel.copyBoard(board);
+        if (testBoard[pos.row]) {
+          testBoard[pos.row][pos.col] = player;
+        }
+
+        // Check if this creates an open four in any direction
+        for (const [deltaRow, deltaCol] of DIRECTIONS) {
+          const pattern = this.analyzePattern(testBoard, pos.row, pos.col, deltaRow, deltaCol, player);
+          if (pattern.length === 4 && pattern.openEnds === 2) {
+            return pos;
+          }
+        }
+      }
+    }
+
     return null;
   }
 
@@ -652,6 +870,44 @@ export class AIService {
   private static isTimeUp(): boolean {
     const elapsed = Date.now() - this.searchStats.startTime;
     return elapsed > this.AI_CONFIG.maxTimePerMove;
+  }
+
+  /**
+   * Check if a move results in a win - Enhanced version
+   */
+  private static isWinningMove(board: Board, row: number, col: number, player: GameSymbol): boolean {
+    for (const [deltaRow, deltaCol] of DIRECTIONS) {
+      let count = 1; // Count the current stone
+
+      // Count in positive direction
+      let r = row + deltaRow;
+      let c = col + deltaCol;
+      while (
+        r >= 0 && r < GAME_CONFIG.BOARD_SIZE &&
+        c >= 0 && c < GAME_CONFIG.BOARD_SIZE &&
+        board[r]?.[c] === player
+      ) {
+        count++;
+        r += deltaRow;
+        c += deltaCol;
+      }
+
+      // Count in negative direction
+      r = row - deltaRow;
+      c = col - deltaCol;
+      while (
+        r >= 0 && r < GAME_CONFIG.BOARD_SIZE &&
+        c >= 0 && c < GAME_CONFIG.BOARD_SIZE &&
+        board[r]?.[c] === player
+      ) {
+        count++;
+        r -= deltaRow;
+        c -= deltaCol;
+      }
+
+      if (count >= GAME_CONFIG.WIN_LENGTH) return true;
+    }
+    return false;
   }
 
   /**
@@ -724,6 +980,216 @@ export class AIService {
   static clearCache(): void {
     this.transpositionTable.clear();
     console.log('🧹 AI cache cleared');
+  }
+
+  // =================================================================
+  // ADVANCED THREAT DETECTION
+  // =================================================================
+
+  /**
+   * Detects advanced threat patterns and combinations
+   */
+  private static detectAdvancedThreats(board: Board, player: GameSymbol): {
+    doubleThreat: Position | null;
+    forkThreat: Position | null;
+    vcfThreat: Position | null;
+  } {
+    const relevantPositions = this.getRelevantPositions(board);
+    let doubleThreat: Position | null = null;
+    let forkThreat: Position | null = null;
+    let vcfThreat: Position | null = null;
+
+    for (const pos of relevantPositions) {
+      if (board[pos.row]?.[pos.col] === null) {
+        const testBoard = GameModel.copyBoard(board);
+        if (testBoard[pos.row]) {
+          testBoard[pos.row][pos.col] = player;
+        }
+
+        // Check for double threat (two ways to win)
+        const threats = this.countWinningThreats(testBoard, player);
+        if (threats >= 2) {
+          doubleThreat = pos;
+        }
+
+        // Check for fork (multiple open threes)
+        const openThrees = this.countOpenThrees(testBoard, player);
+        if (openThrees >= 2) {
+          forkThreat = pos;
+        }
+
+        // Check for VCF (Victory by Continuous Force)
+        if (this.hasVCF(testBoard, pos, player)) {
+          vcfThreat = pos;
+        }
+      }
+    }
+
+    return { doubleThreat, forkThreat, vcfThreat };
+  }
+
+  /**
+   * Counts winning threats (open fours and closed fours)
+   */
+  private static countWinningThreats(board: Board, player: GameSymbol): number {
+    let threats = 0;
+
+    for (let row = 0; row < GAME_CONFIG.BOARD_SIZE; row++) {
+      for (let col = 0; col < GAME_CONFIG.BOARD_SIZE; col++) {
+        if (board[row]?.[col] === player) {
+          for (const [deltaRow, deltaCol] of DIRECTIONS) {
+            const pattern = this.analyzePattern(board, row, col, deltaRow, deltaCol, player);
+            if (pattern.length === 4 && pattern.openEnds >= 1) {
+              threats++;
+            }
+          }
+        }
+      }
+    }
+
+    return threats;
+  }
+
+  /**
+   * Counts open three patterns
+   */
+  private static countOpenThrees(board: Board, player: GameSymbol): number {
+    let count = 0;
+
+    for (let row = 0; row < GAME_CONFIG.BOARD_SIZE; row++) {
+      for (let col = 0; col < GAME_CONFIG.BOARD_SIZE; col++) {
+        if (board[row]?.[col] === player) {
+          for (const [deltaRow, deltaCol] of DIRECTIONS) {
+            const pattern = this.analyzePattern(board, row, col, deltaRow, deltaCol, player);
+            if (pattern.length === 3 && pattern.openEnds === 2) {
+              count++;
+            }
+          }
+        }
+      }
+    }
+
+    return count;
+  }
+
+  /**
+   * Checks for Victory by Continuous Force (forced win sequence)
+   */
+  private static hasVCF(board: Board, move: Position, player: GameSymbol): boolean {
+    // Simplified VCF detection - checks if move creates multiple simultaneous threats
+    const testBoard = GameModel.copyBoard(board);
+    if (testBoard[move.row]) {
+      testBoard[move.row][move.col] = player;
+    }
+
+    const threats = this.countWinningThreats(testBoard, player);
+    const openThrees = this.countOpenThrees(testBoard, player);
+
+    // VCF if we create multiple threats that opponent cannot block all
+    return threats >= 2 || (threats >= 1 && openThrees >= 2);
+  }
+
+  // =================================================================
+  // OPENING BOOK STRATEGIES
+  // =================================================================
+
+  /**
+   * Gets opening book move for early game
+   */
+  private static getOpeningBookMove(board: Board, aiSymbol: GameSymbol): Position | null {
+    const moveCount = this.getMoveCount(board);
+    const center = Math.floor(GAME_CONFIG.BOARD_SIZE / 2);
+
+    // First move: always center
+    if (moveCount === 0) {
+      return { row: center, col: center };
+    }
+
+    // Second move: respond to opponent
+    if (moveCount === 1) {
+      // If opponent took center, play adjacent diagonal
+      if (board[center]?.[center] !== null) {
+        const openingMoves = [
+          { row: center - 1, col: center - 1 },
+          { row: center - 1, col: center + 1 },
+          { row: center + 1, col: center - 1 },
+          { row: center + 1, col: center + 1 }
+        ];
+
+        for (const move of openingMoves) {
+          if (this.isValidPosition(move.row, move.col) && board[move.row]?.[move.col] === null) {
+            return move;
+          }
+        }
+      } else {
+        // If opponent didn't take center, take it
+        return { row: center, col: center };
+      }
+    }
+
+    // Early game: stay near center, avoid edges
+    if (moveCount <= 6) {
+      const centerArea = this.getCenterAreaMoves(board, center);
+      if (centerArea.length > 0) {
+        return centerArea[0]; // Return best center area move
+      }
+    }
+
+    return null; // Use regular AI for mid/late game
+  }
+
+  /**
+   * Gets moves in center area (avoiding edges)
+   */
+  private static getCenterAreaMoves(board: Board, center: number): Position[] {
+    const moves: Position[] = [];
+    const radius = 3; // Stay within 3 squares of center
+
+    for (let dr = -radius; dr <= radius; dr++) {
+      for (let dc = -radius; dc <= radius; dc++) {
+        const row = center + dr;
+        const col = center + dc;
+
+        if (this.isValidPosition(row, col) && board[row]?.[col] === null) {
+          // Prefer positions closer to center
+          const distance = Math.abs(dr) + Math.abs(dc);
+          if (distance > 0) { // Don't include center itself
+            moves.push({ row, col });
+          }
+        }
+      }
+    }
+
+    // Sort by distance from center (closer = better)
+    moves.sort((a, b) => {
+      const distA = Math.abs(a.row - center) + Math.abs(a.col - center);
+      const distB = Math.abs(b.row - center) + Math.abs(b.col - center);
+      return distA - distB;
+    });
+
+    return moves;
+  }
+
+  /**
+   * Counts total moves on board
+   */
+  private static getMoveCount(board: Board): number {
+    let count = 0;
+    for (let row = 0; row < GAME_CONFIG.BOARD_SIZE; row++) {
+      for (let col = 0; col < GAME_CONFIG.BOARD_SIZE; col++) {
+        if (board[row]?.[col] !== null) {
+          count++;
+        }
+      }
+    }
+    return count;
+  }
+
+  /**
+   * Checks if position is valid on board
+   */
+  private static isValidPosition(row: number, col: number): boolean {
+    return row >= 0 && row < GAME_CONFIG.BOARD_SIZE && col >= 0 && col < GAME_CONFIG.BOARD_SIZE;
   }
 
   /**

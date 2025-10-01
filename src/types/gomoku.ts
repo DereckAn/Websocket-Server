@@ -200,9 +200,9 @@ export const GAME_CONFIG = {
   AI_DIFFICULTY: 'extreme' as const, // Always extreme
 
   // Timing configurations
-  AI_MAX_THINK_TIME: 2000,     // 2 seconds max for AI
+  AI_MAX_THINK_TIME: 1000,     // 1 second max for AI (faster response)
   AUTO_CLEANUP_TIME: 30 * 60 * 1000, // 30 minutes
-  WEBSOCKET_PING_INTERVAL: 30000, // 30 seconds
+  WEBSOCKET_PING_INTERVAL: 60000, // 60 seconds (more stable)
 
   // Performance limits
   MAX_CONCURRENT_GAMES: 15,    // Support for 15 simultaneous games

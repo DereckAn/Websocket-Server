@@ -109,6 +109,11 @@ export class GomokuController {
 
       if (moveResult.success) {
         console.log(`✅ Move processed for game ${gameId}`);
+
+        // Broadcast move update via WebSocket
+        console.log(`🔌 🚀 About to broadcast move update...`);
+        this.broadcastMoveUpdate(moveResult);
+
         return this.successResponse(moveResult);
       } else {
         console.log(`❌ Invalid move for game ${gameId}: ${moveResult.error}`);
@@ -430,6 +435,119 @@ export class GomokuController {
       case 422: return 'UNPROCESSABLE_ENTITY';
       case 500: return 'INTERNAL_SERVER_ERROR';
       default: return 'UNKNOWN_ERROR';
+    }
+  }
+
+  // =================================================================
+  // WEBSOCKET BROADCASTING METHODS
+  // =================================================================
+
+  /**
+   * Broadcasts move updates via WebSocket
+   */
+  private static async broadcastMoveUpdate(moveResult: any): Promise<void> {
+    try {
+      // Import WebSocketService to avoid circular dependency
+      const { default: WebSocketService } = await import('../services/WebSocketService');
+
+      if (!moveResult.gameState || !moveResult.move) {
+        console.log('🔌 ⚠️ Cannot broadcast: missing gameState or move');
+        return;
+      }
+
+      // Extract room ID from gameId (game_ABC123 -> ABC123)
+      const roomId = moveResult.gameState.id.replace('game_', '');
+      console.log(`🔌 📡 Broadcasting move update for room ${roomId}`);
+
+      const room = await GameService.getRoom(roomId);
+      if (!room) {
+        console.log(`🔌 ⚠️ Cannot broadcast: room ${roomId} not found`);
+        return;
+      }
+
+      // Broadcast player move
+      WebSocketService.broadcastToRoom(room.id, {
+        type: 'move_made',
+        gameId: moveResult.gameState.id,
+        roomId: room.id,
+        data: {
+          move: moveResult.move,
+          gameState: moveResult.gameState,
+          playerId: moveResult.move.playerId || moveResult.playerId
+        },
+        timestamp: new Date()
+      });
+
+      // If there's an AI move, broadcast it too
+      if (moveResult.aiMove) {
+        // Send "AI thinking" notification first
+        WebSocketService.broadcastToRoom(room.id, {
+          type: 'ai_thinking',
+          gameId: moveResult.gameState.id,
+          data: {
+            message: 'AI is thinking...',
+            estimatedTime: 1000
+          },
+          timestamp: new Date()
+        });
+
+        // Send AI move after a brief delay
+        setTimeout(() => {
+          WebSocketService.broadcastToRoom(room.id, {
+            type: 'ai_move',
+            gameId: moveResult.gameState.id,
+            data: {
+              move: moveResult.aiMove,
+              gameState: moveResult.gameState,
+              aiStats: {
+                timeElapsed: moveResult.aiMove.timeElapsed,
+                nodesSearched: moveResult.aiMove.nodesSearched || 0,
+                confidence: moveResult.aiMove.confidence || 0.5
+              }
+            },
+            timestamp: new Date()
+          });
+
+          // Check if game ended
+          if (moveResult.gameState.status === 'won' || moveResult.gameState.status === 'draw') {
+            setTimeout(() => {
+              WebSocketService.broadcastToRoom(room.id, {
+                type: 'game_over',
+                gameId: moveResult.gameState.id,
+                data: {
+                  gameState: moveResult.gameState,
+                  winner: moveResult.gameState.winner,
+                  finalMessage: moveResult.gameState.status === 'won'
+                    ? `${moveResult.gameState.winner} wins!`
+                    : 'Game ended in a draw!'
+                },
+                timestamp: new Date()
+              });
+            }, 100);
+          }
+        }, 100);
+      }
+
+      // Check if game ended (for non-AI games)
+      if (!moveResult.aiMove && (moveResult.gameState.status === 'won' || moveResult.gameState.status === 'draw')) {
+        setTimeout(() => {
+          WebSocketService.broadcastToRoom(room.id, {
+            type: 'game_over',
+            gameId: moveResult.gameState.id,
+            data: {
+              gameState: moveResult.gameState,
+              winner: moveResult.gameState.winner,
+              finalMessage: moveResult.gameState.status === 'won'
+                ? `${moveResult.gameState.winner} wins!`
+                : 'Game ended in a draw!'
+            },
+            timestamp: new Date()
+          });
+        }, 50);
+      }
+
+    } catch (error) {
+      console.error('❌ Error broadcasting move update:', error);
     }
   }
 
