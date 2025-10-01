@@ -89,6 +89,14 @@ export interface Room {
   createdAt: Date;            // Room creation time
   lastActivity: Date;         // Last activity (for cleanup)
   autoCleanupAt: Date;        // When to auto-delete this room
+
+  // Win tracking for the room session
+  winStats?: {
+    humanWins: number;         // Human player wins in this room
+    aiWins: number;            // AI wins in this room
+    draws: number;             // Draw count
+    consecutiveHumanWins: number; // Consecutive human wins (for rewards)
+  };
 }
 
 // =================================================================

@@ -60,6 +60,11 @@ export class GomokuRoutes {
           const endGameId = this.extractGameId(path);
           return await this.handleEndGame(request, endGameId);
 
+        // POST /api/gomoku/game/:gameId/reset
+        case method === 'POST' && this.matchesPattern(path, '/api/gomoku/game/*/reset'):
+          const resetGameId = this.extractGameId(path);
+          return await this.handleResetGame(request, resetGameId);
+
         // No match
         default:
           return null; // Let other route handlers try
@@ -174,6 +179,26 @@ export class GomokuRoutes {
     } catch (error) {
       console.error(`❌ End game error for ${gameId}:`, error);
       return ResponseView.internalServerError('Failed to end game');
+    }
+  }
+
+  /**
+   * Handles POST /api/gomoku/game/:gameId/reset
+   * Resets the game in the same room, keeping win stats
+   */
+  private static async handleResetGame(request: Request, gameId: string): Promise<Response> {
+    try {
+      console.log(`🔄 Handling reset game request for ${gameId}`);
+
+      // Validate gameId
+      if (!this.isValidGameId(gameId)) {
+        return ResponseView.badRequest('Invalid game ID format');
+      }
+
+      return await GomokuController.resetGame(request, gameId);
+    } catch (error) {
+      console.error(`❌ Reset game error for ${gameId}:`, error);
+      return ResponseView.internalServerError('Failed to reset game');
     }
   }
 

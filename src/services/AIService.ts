@@ -12,6 +12,7 @@ import {
   DIRECTIONS
 } from '../types/gomoku';
 import GameModel from '../models/GameModel';
+import OpeningBook from './OpeningBook';
 
 /**
  * AIService - High-performance Gomoku AI optimized for server
@@ -25,40 +26,59 @@ import GameModel from '../models/GameModel';
  */
 export class AIService {
 
-  // AI Configuration - NEARLY UNBEATABLE difficulty
+  // AI Configuration - UNBEATABLE EXPERT difficulty
   private static readonly AI_CONFIG = {
-    maxDepth: 12,                   // Deep search but reasonable performance
-    maxTimePerMove: 5000,           // 5 seconds for thorough analysis
+    maxDepth: 18,                   // Very deep search (was 16) - MORE THINKING!
+    maxTimePerMove: 10000,          // 10 seconds for thorough analysis (was 5s) - MORE TIME!
     useTranspositionTable: true,    // Cache evaluated positions
     useIterativeDeepening: true,    // Gradually increase search depth
     useAlphaBetaPruning: true,      // Skip irrelevant branches
     usePatternRecognition: true,    // Recognize common patterns
-    aggressiveness: 0.9,            // Balanced aggressive attacking
-    defensiveness: 1.2,             // Strong defensive play
-    threatDetectionDepth: 8,        // Very deep threat analysis
+    aggressiveness: 1.3,            // More aggressive - create threats actively!
+    defensiveness: 2.0,             // Strong defense but not overly defensive
+    threatDetectionDepth: 10,       // Even deeper threats (was 8)
     openingBookEnabled: true,       // Use opening book for early game
     useThreatSpaceSearch: true,     // Advanced threat space analysis
     useVCF: true,                   // Victory by Continuous Force
     useVCT: true,                   // Victory by Continuous Threat
+
+    // Phase 1 optimizations
+    useKillerMoves: true,           // Killer move heuristic
+    useHistoryHeuristic: true,      // History heuristic
+    useNullMovePruning: true,       // Null-move pruning
+    nullMoveReduction: 3,           // Depth reduction for null move
+
+    // Phase 2 optimizations (UNBEATABLE!)
+    useLMR: true,                   // Late Move Reduction (NEW PHASE 2!)
+    lmrDepthThreshold: 3,           // Minimum depth for LMR
+    lmrMoveThreshold: 4,            // Start LMR after move #4
+    lmrReduction: 2,                // Depth reduction amount
+    useAspirationWindows: true,     // Aspiration windows (NEW PHASE 2!)
+    aspirationWindowSize: 50,       // Window size for aspiration
+    useZobristHashing: true,        // Zobrist hashing (NEW PHASE 2!)
+    useEnhancedPatterns: true,      // Enhanced pattern recognition (NEW PHASE 2!)
+    useThreatExtension: true,       // Extend search on threats (NEW PHASE 2!)
   };
 
-  // Pattern evaluation values (strategic importance) - Enhanced for unbeatable AI
+  // Pattern evaluation values (strategic importance) - BALANCED FOR PROPER PLAY!
   private static readonly PATTERN_VALUES = {
-    // Winning patterns
+    // Winning patterns (critical)
     FIVE_IN_ROW: 10000000,          // Immediate win (highest priority)
     OPEN_FOUR: 1000000,             // Unstoppable (4 with both ends open)
 
     // Critical threatening patterns
-    CLOSED_FOUR: 500000,            // 4 in a row, one end blocked (must respond)
+    CLOSED_FOUR: 500000,            // 4 in a row, one end blocked
     DOUBLE_OPEN_THREE: 100000,      // Two open threes (fork - game over)
-    OPEN_THREE: 50000,              // 3 in a row, both ends open (very strong)
+    OPEN_THREE: 50000,              // 3 in a row, both ends open
     BROKEN_FOUR: 40000,             // 4 with gap (X_XXX or XXX_X)
 
     // Advanced threat patterns
-    DOUBLE_CLOSED_THREE: 25000,     // Two closed threes (strong attack)
-    TRIPLE_OPEN_TWO: 15000,         // Three open twos (building power)
+    TRIPLE_THREAT: 80000,           // Three threats at once
+    DOUBLE_CLOSED_THREE: 25000,     // Two closed threes
+    TRIPLE_OPEN_TWO: 15000,         // Three open twos
     OPEN_THREE_PLUS_TWO: 12000,     // Open three + open two combo
     SWORD_PATTERN: 10000,           // Special attacking pattern
+    DOUBLE_FOUR: 800000,            // Two fours at once
 
     // Building patterns
     CLOSED_THREE: 5000,             // 3 in a row, one end blocked
@@ -68,10 +88,11 @@ export class AIService {
     SINGLE_STONE: 10,               // Single stone
 
     // Positional values
-    CENTER_BONUS: 100,              // Strong center preference
+    CENTER_BONUS: 100,              // Center preference
     PROXIMITY_BONUS: 50,            // Stay near existing stones
     CORNER_PENALTY: -20,            // Avoid corners early game
     EDGE_PENALTY: -10,              // Avoid edges early game
+    KEY_POINT_BONUS: 200,           // Strategic key points
   };
 
   // Transposition table for caching evaluations
@@ -82,12 +103,34 @@ export class AIService {
     flag: 'exact' | 'lowerbound' | 'upperbound';
   }> = new Map();
 
+  // Killer moves table - stores moves that caused cutoffs at each depth
+  // Structure: Map<depth, [killer1, killer2]>
+  private static killerMoves: Map<number, Position[]> = new Map();
+
+  // History heuristic table - tracks success rate of moves
+  // historyTable[row][col] = score (higher = historically better)
+  private static historyTable: number[][] = Array(GAME_CONFIG.BOARD_SIZE)
+    .fill(null)
+    .map(() => Array(GAME_CONFIG.BOARD_SIZE).fill(0));
+
+  // Zobrist hashing - random numbers for incremental hash calculation
+  // zobristTable[row][col][player] = random 64-bit number
+  private static zobristTable: bigint[][][] = AIService.initializeZobristTable();
+
+  // Current zobrist hash for incremental updates
+  private static currentZobristHash: bigint = BigInt(0);
+
   // Performance tracking
   private static searchStats = {
     nodesSearched: 0,
     cacheHits: 0,
     cacheMisses: 0,
     startTime: 0,
+    killerHits: 0,
+    nullMoveCutoffs: 0,
+    lmrReductions: 0,
+    aspirationHits: 0,
+    threatExtensions: 0,
   };
 
   // =================================================================
@@ -109,23 +152,21 @@ export class AIService {
     try {
       console.log(`🤖 AI (${aiSymbol}) calculating move for game ${gameState.id}...`);
 
-      // 1. Opening book moves (early game)
-      if (this.AI_CONFIG.openingBookEnabled) {
-        const openingMove = this.getOpeningBookMove(gameState.board, aiSymbol);
-        if (openingMove) {
-          const timeElapsed = Date.now() - startTime;
-          console.log(`📚 AI using opening book move in ${timeElapsed}ms: (${openingMove.row}, ${openingMove.col})`);
+      // 1. Quick win/block checks (HIGHEST PRIORITY - immediate tactical moves)
+      const immediateMove = this.findImmediateMove(gameState.board, aiSymbol);
+      if (immediateMove) {
+        const timeElapsed = Date.now() - startTime;
+        console.log(`⚡ AI found immediate move in ${timeElapsed}ms: (${immediateMove.row}, ${immediateMove.col})`);
 
-          return {
-            row: openingMove.row,
-            col: openingMove.col,
-            score: this.PATTERN_VALUES.CENTER_BONUS,
-            timeElapsed,
-            nodesSearched: 1,
-            depth: 1,
-            confidence: 0.9
-          };
-        }
+        return {
+          row: immediateMove.row,
+          col: immediateMove.col,
+          score: immediateMove.priority,
+          timeElapsed,
+          nodesSearched: 1,
+          depth: 1,
+          confidence: 1.0
+        };
       }
 
       // 2. Advanced threat detection
@@ -181,61 +222,106 @@ export class AIService {
         }
       }
 
-      // 3. Quick win/block checks (immediate tactical moves)
-      const immediateMove = this.findImmediateMove(gameState.board, aiSymbol);
-      if (immediateMove) {
-        const timeElapsed = Date.now() - startTime;
-        console.log(`⚡ AI found immediate move in ${timeElapsed}ms: (${immediateMove.row}, ${immediateMove.col})`);
+      // 3. Opening book moves (early game, ONLY if no threats detected)
+      if (this.AI_CONFIG.openingBookEnabled) {
+        const openingMove = this.getOpeningBookMove(gameState.board, aiSymbol);
+        if (openingMove) {
+          const timeElapsed = Date.now() - startTime;
+          console.log(`📚 AI using opening book move in ${timeElapsed}ms: (${openingMove.row}, ${openingMove.col})`);
 
-        return {
-          row: immediateMove.row,
-          col: immediateMove.col,
-          score: immediateMove.priority,
-          timeElapsed,
-          nodesSearched: 1,
-          depth: 1,
-          confidence: 1.0
-        };
+          return {
+            row: openingMove.row,
+            col: openingMove.col,
+            score: this.PATTERN_VALUES.CENTER_BONUS,
+            timeElapsed,
+            nodesSearched: 1,
+            depth: 1,
+            confidence: 0.9
+          };
+        }
       }
 
-      // Use iterative deepening for best move
+      // 4. Use iterative deepening for best move
       let bestMove: Position | null = null;
       let bestScore = -Infinity;
       let searchDepth = 1;
 
-      // Iterative deepening: gradually increase search depth
+      // Iterative deepening with Aspiration Windows (Phase 2)
+      console.log(`🧠 AI starting deep search (max depth: ${this.AI_CONFIG.maxDepth}, max time: ${this.AI_CONFIG.maxTimePerMove}ms)...`);
+
       for (let depth = 1; depth <= this.AI_CONFIG.maxDepth; depth++) {
         const timeElapsed = Date.now() - startTime;
+        const depthStartTime = Date.now();
 
         // Time limit check (use 80% of available time for iterative deepening)
         if (timeElapsed > this.AI_CONFIG.maxTimePerMove * 0.8) {
-          console.log(`⏰ AI time limit reached at depth ${depth}`);
+          console.log(`⏰ AI time limit reached at depth ${depth} (${timeElapsed}ms elapsed)`);
           break;
         }
 
-        const result = this.minimaxAlphaBeta(
-          gameState.board,
-          depth,
-          -Infinity,
-          Infinity,
-          true, // maximizing player (AI)
-          aiSymbol
-        );
+        console.log(`🔍 Searching depth ${depth}... (${timeElapsed}ms elapsed so far)`);
+        let result;
+
+        // ====== ASPIRATION WINDOWS (Phase 2) ======
+        // Use narrow window for faster search after depth 3
+        if (this.AI_CONFIG.useAspirationWindows && depth > 3 && bestScore !== -Infinity) {
+          const window = this.AI_CONFIG.aspirationWindowSize;
+          const alpha = bestScore - window;
+          const beta = bestScore + window;
+
+          // Try narrow window first
+          result = this.minimaxAlphaBeta(
+            gameState.board,
+            depth,
+            alpha,
+            beta,
+            true, // maximizing player (AI)
+            aiSymbol
+          );
+
+          // If score falls outside window, re-search with full window
+          if (result.score <= alpha || result.score >= beta) {
+            console.log(`🔄 Aspiration window failed at depth ${depth}, re-searching`);
+            result = this.minimaxAlphaBeta(
+              gameState.board,
+              depth,
+              -Infinity,
+              Infinity,
+              true,
+              aiSymbol
+            );
+          } else {
+            this.searchStats.aspirationHits++;
+          }
+        } else {
+          // Full window search
+          result = this.minimaxAlphaBeta(
+            gameState.board,
+            depth,
+            -Infinity,
+            Infinity,
+            true, // maximizing player (AI)
+            aiSymbol
+          );
+        }
 
         if (result.bestMove) {
           bestMove = result.bestMove;
           bestScore = result.score;
           searchDepth = depth;
 
+          const depthTime = Date.now() - depthStartTime;
+          console.log(`✅ Depth ${depth} complete: move (${bestMove.row},${bestMove.col}), score ${bestScore}, time ${depthTime}ms, nodes ${this.searchStats.nodesSearched}`);
+
           // If we found a winning move, no need to search deeper
           if (bestScore >= this.PATTERN_VALUES.OPEN_FOUR) {
-            console.log(`🎯 AI found winning move at depth ${depth}`);
+            console.log(`🎯 AI found winning move at depth ${depth}! (score: ${bestScore})`);
             break;
           }
 
           // If we found a very strong position, we can be confident
           if (bestScore >= this.PATTERN_VALUES.OPEN_THREE * 2) {
-            console.log(`💪 AI found strong position at depth ${depth}`);
+            console.log(`💪 AI found strong position at depth ${depth} (score: ${bestScore})`);
             // Continue searching but with high confidence
           }
         }
@@ -250,8 +336,20 @@ export class AIService {
       const timeElapsed = Date.now() - startTime;
       const confidence = this.calculateConfidence(bestScore, searchDepth);
 
-      console.log(`🤖 AI decision: (${bestMove.row}, ${bestMove.col}) - Score: ${bestScore}, Depth: ${searchDepth}, Time: ${timeElapsed}ms`);
-      console.log(`📊 Search stats: ${this.searchStats.nodesSearched} nodes, ${this.searchStats.cacheHits} cache hits`);
+      console.log(`\n${'='.repeat(80)}`);
+      console.log(`🤖 AI FINAL DECISION: (${bestMove.row}, ${bestMove.col})`);
+      console.log(`   Score: ${bestScore}, Depth reached: ${searchDepth}, Time: ${timeElapsed}ms`);
+      console.log(`${'='.repeat(80)}`);
+      console.log(`📊 PHASE 1 OPTIMIZATIONS:`);
+      console.log(`   • Nodes searched: ${this.searchStats.nodesSearched}`);
+      console.log(`   • Cache hits: ${this.searchStats.cacheHits} (${((this.searchStats.cacheHits / this.searchStats.nodesSearched) * 100).toFixed(1)}% hit rate)`);
+      console.log(`   • Killer move hits: ${this.searchStats.killerHits} ${this.searchStats.killerHits > 0 ? '✅' : '⚠️'}`);
+      console.log(`   • Null-move cutoffs: ${this.searchStats.nullMoveCutoffs} ${this.searchStats.nullMoveCutoffs > 0 ? '✅' : '⚠️'}`);
+      console.log(`📊 PHASE 2 OPTIMIZATIONS:`);
+      console.log(`   • LMR reductions: ${this.searchStats.lmrReductions} ${this.searchStats.lmrReductions > 0 ? '✅' : '⚠️'}`);
+      console.log(`   • Aspiration hits: ${this.searchStats.aspirationHits} ${this.searchStats.aspirationHits > 0 ? '✅' : '⚠️'}`);
+      console.log(`   • Threat extensions: ${this.searchStats.threatExtensions} ${this.searchStats.threatExtensions > 0 ? '✅' : '⚠️'}`);
+      console.log(`${'='.repeat(80)}\n`);
 
       return {
         row: bestMove.row,
@@ -286,6 +384,7 @@ export class AIService {
 
   /**
    * Core AI algorithm: Minimax with Alpha-Beta pruning
+   * Enhanced with Null-Move Pruning, Killer Moves, and History Heuristic
    *
    * This is where the AI "thinks" - evaluating possible moves
    */
@@ -295,7 +394,8 @@ export class AIService {
     alpha: number,
     beta: number,
     maximizingPlayer: boolean,
-    aiSymbol: GameSymbol
+    aiSymbol: GameSymbol,
+    allowNullMove: boolean = true
   ): { score: number; bestMove: Position | null } {
 
     this.searchStats.nodesSearched++;
@@ -320,8 +420,39 @@ export class AIService {
     }
     this.searchStats.cacheMisses++;
 
-    // Generate and order moves
-    const moves = this.generateOrderedMoves(board, maximizingPlayer ? aiSymbol : this.getOpponent(aiSymbol));
+    // ====== NULL-MOVE PRUNING ======
+    // If we can "pass" and still beat beta, position is too good - prune
+    // Only try in non-PV nodes, when not in check, and with sufficient depth
+    if (
+      this.AI_CONFIG.useNullMovePruning &&
+      allowNullMove &&
+      !maximizingPlayer &&  // Only for opponent moves (defensive pruning)
+      depth >= this.AI_CONFIG.nullMoveReduction + 1
+    ) {
+      // Try null move (skip turn)
+      const nullScore = this.minimaxAlphaBeta(
+        board,
+        depth - this.AI_CONFIG.nullMoveReduction - 1,
+        -beta,
+        -beta + 1,
+        true,  // Switch to maximizing
+        aiSymbol,
+        false  // Don't allow consecutive null moves
+      ).score;
+
+      // If null move causes beta cutoff, prune this branch
+      if (nullScore >= beta) {
+        this.searchStats.nullMoveCutoffs++;
+        return { score: beta, bestMove: null };
+      }
+    }
+
+    // Generate and order moves (now with killer + history heuristic)
+    const moves = this.generateOrderedMoves(
+      board,
+      maximizingPlayer ? aiSymbol : this.getOpponent(aiSymbol),
+      depth
+    );
 
     if (moves.length === 0) {
       return { score: 0, bestMove: null }; // Draw
@@ -329,8 +460,11 @@ export class AIService {
 
     let bestMove: Position | null = null;
     let bestScore = maximizingPlayer ? -Infinity : Infinity;
+    let moveCount = 0;
 
     for (const move of moves) {
+      moveCount++;
+
       // Make move
       const newBoard = GameModel.copyBoard(board);
       if (newBoard[move.row] && newBoard[move.row]?.[move.col] === null) {
@@ -358,15 +492,62 @@ export class AIService {
         return { score: winScore, bestMove: move };
       }
 
-      // Recursive search
-      const result = this.minimaxAlphaBeta(
+      // ====== THREAT EXTENSION (Phase 2) ======
+      // Extend search if move creates or blocks threats
+      let searchDepth = depth - 1;
+      if (this.AI_CONFIG.useThreatExtension && depth > 2) {
+        const threats = this.countThreats(newBoard, move.row, move.col, currentPlayerForMove);
+        if (threats >= 2) {
+          searchDepth = depth; // Don't reduce depth for threat moves
+          this.searchStats.threatExtensions++;
+        }
+      }
+
+      // ====== LATE MOVE REDUCTION (Phase 2) ======
+      // Reduce depth for late moves that aren't likely to be best
+      let reduction = 0;
+      if (
+        this.AI_CONFIG.useLMR &&
+        depth >= this.AI_CONFIG.lmrDepthThreshold &&
+        moveCount > this.AI_CONFIG.lmrMoveThreshold &&
+        !bestMove // Not first move
+      ) {
+        // Don't reduce tactical moves (captures, threats)
+        const isTactical = this.isTacticalMove(newBoard, move.row, move.col, currentPlayerForMove);
+        if (!isTactical) {
+          reduction = this.AI_CONFIG.lmrReduction;
+          this.searchStats.lmrReductions++;
+        }
+      }
+
+      // Recursive search with possible reduction
+      let result = this.minimaxAlphaBeta(
         newBoard,
-        depth - 1,
+        searchDepth - reduction,
         alpha,
         beta,
         !maximizingPlayer,
         aiSymbol
       );
+
+      // ====== LMR RE-SEARCH ======
+      // If reduced move looks good, re-search at full depth
+      if (reduction > 0) {
+        const needsReSearch = maximizingPlayer
+          ? result.score > alpha
+          : result.score < beta;
+
+        if (needsReSearch) {
+          result = this.minimaxAlphaBeta(
+            newBoard,
+            searchDepth,
+            alpha,
+            beta,
+            !maximizingPlayer,
+            aiSymbol
+          );
+        }
+      }
 
       // Update best move
       if (maximizingPlayer) {
@@ -385,8 +566,25 @@ export class AIService {
 
       // Alpha-beta pruning
       if (beta <= alpha) {
+        // ====== KILLER MOVE HEURISTIC ======
+        // Store this move as a killer move (caused a cutoff)
+        if (this.AI_CONFIG.useKillerMoves && bestMove) {
+          this.storeKillerMove(depth, bestMove);
+        }
+
+        // ====== HISTORY HEURISTIC ======
+        // Update history table (this move was good)
+        if (this.AI_CONFIG.useHistoryHeuristic && bestMove) {
+          this.historyTable[bestMove.row][bestMove.col] += depth * depth;
+        }
+
         break; // Prune remaining moves
       }
+    }
+
+    // Update history for best move even if no cutoff
+    if (this.AI_CONFIG.useHistoryHeuristic && bestMove) {
+      this.historyTable[bestMove.row][bestMove.col] += depth;
     }
 
     // Cache result
@@ -417,15 +615,18 @@ export class AIService {
     const aiScore = this.evaluatePlayerPosition(board, aiSymbol);
     const opponentScore = this.evaluatePlayerPosition(board, opponent);
 
-    // Enhanced evaluation: AI advantage with threat detection bonus
-    let evaluation = aiScore - opponentScore * this.AI_CONFIG.defensiveness;
+    // Balanced evaluation: Apply aggression and defense multipliers
+    let evaluation = (aiScore * this.AI_CONFIG.aggressiveness) - (opponentScore * this.AI_CONFIG.defensiveness);
 
-    // Bonus for creating multiple threats
+    // Bonus for creating multiple threats (INCREASED for more aggressive play)
     const aiThreats = this.countWinningThreats(board, aiSymbol);
     const opponentThreats = this.countWinningThreats(board, this.getOpponent(aiSymbol));
 
-    evaluation += aiThreats * this.PATTERN_VALUES.OPEN_THREE * 0.1;
-    evaluation -= opponentThreats * this.PATTERN_VALUES.OPEN_THREE * 0.2; // Defense is more important
+    // AI threats bonus (create our own threats)
+    evaluation += aiThreats * this.PATTERN_VALUES.OPEN_THREE * 0.3 * this.AI_CONFIG.aggressiveness;
+
+    // Opponent threats penalty (defend against their threats)
+    evaluation -= opponentThreats * this.PATTERN_VALUES.OPEN_THREE * 0.3 * this.AI_CONFIG.defensiveness;
 
     return evaluation;
   }
@@ -572,18 +773,37 @@ export class AIService {
 
   /**
    * Generates moves ordered by strategic importance
-   * Enhanced with comprehensive threat analysis
+   * Enhanced with Killer Moves, History Heuristic, and threat analysis
    */
-  private static generateOrderedMoves(board: Board, player: GameSymbol): Position[] {
+  private static generateOrderedMoves(board: Board, player: GameSymbol, depth: number = 0): Position[] {
     const moves: Array<{ position: Position; priority: number }> = [];
     const opponent = this.getOpponent(player);
 
     // Only consider positions near existing stones (huge optimization)
     const relevantPositions = this.getRelevantPositions(board);
 
+    // Get killer moves for this depth
+    const killers = this.AI_CONFIG.useKillerMoves ? (this.killerMoves.get(depth) || []) : [];
+
     for (const pos of relevantPositions) {
       if (board[pos.row]?.[pos.col] === null) {
         let priority = 0;
+
+        // ====== KILLER MOVE BONUS ======
+        // Check if this is a killer move (very high priority)
+        if (this.AI_CONFIG.useKillerMoves) {
+          const isKiller = killers.some(k => k.row === pos.row && k.col === pos.col);
+          if (isKiller) {
+            priority += 8000000; // Very high priority, just below winning moves
+            this.searchStats.killerHits++;
+          }
+        }
+
+        // ====== HISTORY HEURISTIC BONUS ======
+        // Add bonus based on historical success
+        if (this.AI_CONFIG.useHistoryHeuristic) {
+          priority += this.historyTable[pos.row][pos.col] * 100;
+        }
 
         // Test placing our stone
         const testBoard = GameModel.copyBoard(board);
@@ -770,25 +990,56 @@ export class AIService {
 
     const opponent = this.getOpponent(aiSymbol);
 
-    // 1. Check for immediate win
+    // 1. Check for immediate win (5 in a row)
     const winMove = this.findWinningMove(board, aiSymbol);
     if (winMove) {
+      console.log(`🎯 AI found winning move: (${winMove.row}, ${winMove.col})`);
       return { ...winMove, priority: this.PATTERN_VALUES.FIVE_IN_ROW };
     }
 
-    // 2. Check for immediate block
-    const blockMove = this.findWinningMove(board, opponent);
-    if (blockMove) {
-      return { ...blockMove, priority: this.PATTERN_VALUES.OPEN_FOUR };
+    // 2. CRITICAL: Block opponent's winning move (5 in a row)
+    const blockWinMove = this.findWinningMove(board, opponent);
+    if (blockWinMove) {
+      console.log(`🛡️ AI blocking opponent win: (${blockWinMove.row}, ${blockWinMove.col})`);
+      return { ...blockWinMove, priority: this.PATTERN_VALUES.OPEN_FOUR };
     }
 
-    // 3. Check for open four opportunities
+    // 3. ATTACK: Check for our own 4 in a row opportunity (BEFORE blocking opponent's 4)
+    const makeFourMove = this.findFourInRowMove(board, aiSymbol);
+    if (makeFourMove) {
+      console.log(`⚔️ AI creating 4-in-row threat: (${makeFourMove.row}, ${makeFourMove.col})`);
+      return { ...makeFourMove, priority: this.PATTERN_VALUES.CLOSED_FOUR };
+    }
+
+    // 4. DEFENSE: Block opponent's 4 in a row (MUST block!)
+    const blockFourMove = this.findFourInRowMove(board, opponent);
+    if (blockFourMove) {
+      console.log(`🛡️ AI blocking opponent 4-in-row: (${blockFourMove.row}, ${blockFourMove.col})`);
+      return { ...blockFourMove, priority: this.PATTERN_VALUES.CLOSED_FOUR * 0.95 }; // Slightly lower than our own
+    }
+
+    // 5. ATTACK: Check for open four opportunities (unstoppable threat)
     const openFourMove = this.findOpenFourMove(board, aiSymbol);
     if (openFourMove) {
+      console.log(`⚔️ AI creating open-four (unstoppable): (${openFourMove.row}, ${openFourMove.col})`);
       return { ...openFourMove, priority: this.PATTERN_VALUES.OPEN_FOUR };
     }
 
-    return null;
+    // 6. ATTACK: Create our own open three
+    const makeThreeMove = this.findOpenThreeMove(board, aiSymbol);
+    if (makeThreeMove) {
+      console.log(`⚔️ AI creating open-three: (${makeThreeMove.row}, ${makeThreeMove.col})`);
+      return { ...makeThreeMove, priority: this.PATTERN_VALUES.OPEN_THREE };
+    }
+
+    // 7. DEFENSE: Block opponent's open three (lower priority than our attacks)
+    const blockThreeMove = this.findOpenThreeMove(board, opponent);
+    if (blockThreeMove) {
+      console.log(`🛡️ AI blocking opponent open-three: (${blockThreeMove.row}, ${blockThreeMove.col})`);
+      return { ...blockThreeMove, priority: this.PATTERN_VALUES.OPEN_THREE * 0.9 }; // Lower priority
+    }
+
+    return null; // No immediate tactical move, use deep search
   }
 
   /**
@@ -835,6 +1086,60 @@ export class AIService {
         for (const [deltaRow, deltaCol] of DIRECTIONS) {
           const pattern = this.analyzePattern(testBoard, pos.row, pos.col, deltaRow, deltaCol, player);
           if (pattern.length === 4 && pattern.openEnds === 2) {
+            return pos;
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Finds a move that creates or blocks 4 in a row
+   */
+  private static findFourInRowMove(board: Board, player: GameSymbol): Position | null {
+    const relevantPositions = this.getRelevantPositions(board);
+
+    for (const pos of relevantPositions) {
+      if (board[pos.row]?.[pos.col] === null) {
+        // Test placing stone here
+        const testBoard = GameModel.copyBoard(board);
+        if (testBoard[pos.row]) {
+          testBoard[pos.row][pos.col] = player;
+        }
+
+        // Check if this creates 4 in a row in any direction
+        for (const [deltaRow, deltaCol] of DIRECTIONS) {
+          const pattern = this.analyzePattern(testBoard, pos.row, pos.col, deltaRow, deltaCol, player);
+          if (pattern.length === 4) {
+            return pos;
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Finds a move that creates or blocks open three (3 with both ends open)
+   */
+  private static findOpenThreeMove(board: Board, player: GameSymbol): Position | null {
+    const relevantPositions = this.getRelevantPositions(board);
+
+    for (const pos of relevantPositions) {
+      if (board[pos.row]?.[pos.col] === null) {
+        // Test placing stone here
+        const testBoard = GameModel.copyBoard(board);
+        if (testBoard[pos.row]) {
+          testBoard[pos.row][pos.col] = player;
+        }
+
+        // Check if this creates open three in any direction
+        for (const [deltaRow, deltaCol] of DIRECTIONS) {
+          const pattern = this.analyzePattern(testBoard, pos.row, pos.col, deltaRow, deltaCol, player);
+          if (pattern.length === 3 && pattern.openEnds === 2) {
             return pos;
           }
         }
@@ -971,7 +1276,15 @@ export class AIService {
       cacheHits: 0,
       cacheMisses: 0,
       startTime: Date.now(),
+      killerHits: 0,
+      nullMoveCutoffs: 0,
+      lmrReductions: 0,
+      aspirationHits: 0,
+      threatExtensions: 0,
     };
+
+    // Clear killer moves for new search
+    this.killerMoves.clear();
   }
 
   /**
@@ -979,7 +1292,14 @@ export class AIService {
    */
   static clearCache(): void {
     this.transpositionTable.clear();
-    console.log('🧹 AI cache cleared');
+    this.killerMoves.clear();
+
+    // Clear history table
+    this.historyTable = Array(GAME_CONFIG.BOARD_SIZE)
+      .fill(null)
+      .map(() => Array(GAME_CONFIG.BOARD_SIZE).fill(0));
+
+    console.log('🧹 AI cache cleared (transposition + killer + history)');
   }
 
   // =================================================================
@@ -1095,47 +1415,26 @@ export class AIService {
 
   /**
    * Gets opening book move for early game
+   * Enhanced with professional opening patterns
    */
   private static getOpeningBookMove(board: Board, aiSymbol: GameSymbol): Position | null {
     const moveCount = this.getMoveCount(board);
-    const center = Math.floor(GAME_CONFIG.BOARD_SIZE / 2);
 
-    // First move: always center
-    if (moveCount === 0) {
-      return { row: center, col: center };
-    }
-
-    // Second move: respond to opponent
-    if (moveCount === 1) {
-      // If opponent took center, play adjacent diagonal
-      if (board[center]?.[center] !== null) {
-        const openingMoves = [
-          { row: center - 1, col: center - 1 },
-          { row: center - 1, col: center + 1 },
-          { row: center + 1, col: center - 1 },
-          { row: center + 1, col: center + 1 }
-        ];
-
-        for (const move of openingMoves) {
-          if (this.isValidPosition(move.row, move.col) && board[move.row]?.[move.col] === null) {
-            return move;
-          }
+    // Use professional opening book for first 4 moves ONLY (was 8)
+    // After move 4, switch to deep search for tactical play
+    if (moveCount <= 4) {
+      const openingMove = OpeningBook.getOpeningMove(board, moveCount + 1);
+      if (openingMove) {
+        // Verify move is valid
+        if (board[openingMove.row]?.[openingMove.col] === null) {
+          console.log(`📚 Opening book active (move ${moveCount}/4)`);
+          return openingMove;
         }
-      } else {
-        // If opponent didn't take center, take it
-        return { row: center, col: center };
       }
     }
 
-    // Early game: stay near center, avoid edges
-    if (moveCount <= 6) {
-      const centerArea = this.getCenterAreaMoves(board, center);
-      if (centerArea.length > 0) {
-        return centerArea[0]; // Return best center area move
-      }
-    }
-
-    return null; // Use regular AI for mid/late game
+    console.log(`🧠 Opening book finished (move ${moveCount}), switching to deep search`);
+    return null; // Use regular AI after opening
   }
 
   /**
@@ -1193,21 +1492,156 @@ export class AIService {
   }
 
   /**
+   * Checks if a move is tactical (should not be reduced by LMR)
+   * Tactical moves include: threats, blocks, captures
+   */
+  private static isTacticalMove(board: Board, row: number, col: number, player: GameSymbol): boolean {
+    // Check if move creates threats
+    const threats = this.countThreats(board, row, col, player);
+    if (threats >= 1) return true;
+
+    // Check if move blocks opponent threats
+    const opponent = this.getOpponent(player);
+    const opponentThreats = this.countWinningThreats(board, opponent);
+    if (opponentThreats >= 1) return true;
+
+    // Check if move creates open three or better
+    for (const [deltaRow, deltaCol] of DIRECTIONS) {
+      const pattern = this.analyzePattern(board, row, col, deltaRow, deltaCol, player);
+      if (pattern.length >= 3 && pattern.openEnds >= 2) {
+        return true; // Open three or better
+      }
+      if (pattern.length >= 4) {
+        return true; // Any four
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Stores a killer move for a specific depth
+   * Keeps only the 2 most recent killers per depth
+   */
+  private static storeKillerMove(depth: number, move: Position): void {
+    const killers = this.killerMoves.get(depth) || [];
+
+    // Check if move already exists
+    const exists = killers.some(k => k.row === move.row && k.col === move.col);
+    if (exists) return;
+
+    // Add to front, keep only 2 killers per depth
+    killers.unshift(move);
+    if (killers.length > 2) {
+      killers.pop();
+    }
+
+    this.killerMoves.set(depth, killers);
+  }
+
+  // =================================================================
+  // ZOBRIST HASHING (Phase 2)
+  // =================================================================
+
+  /**
+   * Initializes Zobrist hash table with random numbers
+   * This is called once during class initialization
+   */
+  private static initializeZobristTable(): bigint[][][] {
+    const table: bigint[][][] = [];
+
+    // Simple pseudo-random generator for reproducibility
+    let seed = 123456789n;
+    const random = (): bigint => {
+      seed = (seed * 1103515245n + 12345n) & ((1n << 31n) - 1n);
+      return seed;
+    };
+
+    for (let row = 0; row < GAME_CONFIG.BOARD_SIZE; row++) {
+      table[row] = [];
+      for (let col = 0; col < GAME_CONFIG.BOARD_SIZE; col++) {
+        table[row][col] = [];
+        // 0 = X, 1 = O
+        table[row][col][0] = random();
+        table[row][col][1] = random();
+      }
+    }
+
+    return table;
+  }
+
+  /**
+   * Computes Zobrist hash for a board position
+   * O(board_size^2) but only called once per search
+   */
+  private static computeZobristHash(board: Board): bigint {
+    let hash = BigInt(0);
+
+    for (let row = 0; row < GAME_CONFIG.BOARD_SIZE; row++) {
+      for (let col = 0; col < GAME_CONFIG.BOARD_SIZE; col++) {
+        const cell = board[row]?.[col];
+        if (cell === 'X') {
+          hash ^= this.zobristTable[row][col][0];
+        } else if (cell === 'O') {
+          hash ^= this.zobristTable[row][col][1];
+        }
+      }
+    }
+
+    return hash;
+  }
+
+  /**
+   * Updates hash incrementally when a move is made
+   * O(1) - much faster than recomputing
+   */
+  private static updateZobristHash(hash: bigint, row: number, col: number, player: GameSymbol): bigint {
+    const playerIndex = player === 'X' ? 0 : 1;
+    return hash ^ this.zobristTable[row][col][playerIndex];
+  }
+
+  // =================================================================
+  // PERFORMANCE STATISTICS
+  // =================================================================
+
+  /**
    * Gets AI performance statistics
    */
   static getStats(): {
     cacheSize: number;
     hitRate: number;
     lastSearchNodes: number;
+    killerHits: number;
+    nullMoveCutoffs: number;
+    killerMovesStored: number;
+    historyTableEntries: number;
+    lmrReductions: number;
+    aspirationHits: number;
+    threatExtensions: number;
   } {
     const hitRate = this.searchStats.cacheHits + this.searchStats.cacheMisses > 0
       ? this.searchStats.cacheHits / (this.searchStats.cacheHits + this.searchStats.cacheMisses)
       : 0;
 
+    // Count non-zero history entries
+    let historyEntries = 0;
+    for (let row = 0; row < GAME_CONFIG.BOARD_SIZE; row++) {
+      for (let col = 0; col < GAME_CONFIG.BOARD_SIZE; col++) {
+        if (this.historyTable[row][col] > 0) historyEntries++;
+      }
+    }
+
     return {
       cacheSize: this.transpositionTable.size,
       hitRate,
-      lastSearchNodes: this.searchStats.nodesSearched
+      lastSearchNodes: this.searchStats.nodesSearched,
+      killerHits: this.searchStats.killerHits,
+      nullMoveCutoffs: this.searchStats.nullMoveCutoffs,
+      killerMovesStored: this.killerMoves.size,
+      historyTableEntries: historyEntries,
+      lmrReductions: this.searchStats.lmrReductions,
+      aspirationHits: this.searchStats.aspirationHits,
+      threatExtensions: this.searchStats.threatExtensions
     };
   }
 }

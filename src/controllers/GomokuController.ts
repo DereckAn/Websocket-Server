@@ -13,6 +13,7 @@ import {
 } from '../types/gomoku';
 import GameService from '../services/GameService';
 import WebSocketService from '../services/WebSocketService';
+import RoomModel from '../models/RoomModel';
 
 /**
  * GomokuController - Handles all Gomoku-related HTTP and WebSocket requests
@@ -192,6 +193,53 @@ export class GomokuController {
     } catch (error) {
       console.error(`❌ Error ending game ${gameId}:`, error);
       return this.errorResponse('Failed to end game', 500);
+    }
+  }
+
+  /**
+   * POST /api/gomoku/game/:gameId/reset
+   * Resets game in same room, keeping win stats
+   */
+  static async resetGame(request: Request, gameId: string): Promise<Response> {
+    try {
+      console.log(`🔄 Reset game request for ${gameId}`);
+
+      // Extract room ID from gameId (game_ABC123 -> ABC123)
+      const roomId = gameId.replace('game_', '');
+
+      // Get room
+      const room = await GameService.getRoom(roomId);
+      if (!room) {
+        return this.errorResponse('Room not found', 404);
+      }
+
+      // Reset game in room (keeps win stats)
+      RoomModel.resetGameInRoom(room);
+
+      // Broadcast game reset to all players
+      const { default: WebSocketService } = await import('../services/WebSocketService');
+      WebSocketService.broadcastToRoom(room.id, {
+        type: 'game_reset',
+        gameId: room.game.id,
+        data: {
+          gameState: room.game,
+          winStats: room.winStats,
+          message: 'New game started! Win stats preserved.'
+        },
+        timestamp: new Date()
+      });
+
+      console.log(`✅ Game reset in room ${roomId}. Win stats: H:${room.winStats?.humanWins} AI:${room.winStats?.aiWins}`);
+
+      return this.successResponse({
+        message: 'Game reset successfully',
+        gameState: room.game,
+        winStats: room.winStats
+      });
+
+    } catch (error) {
+      console.error(`❌ Error resetting game ${gameId}:`, error);
+      return this.errorResponse('Failed to reset game', 500);
     }
   }
 
@@ -510,7 +558,35 @@ export class GomokuController {
 
           // Check if game ended
           if (moveResult.gameState.status === 'won' || moveResult.gameState.status === 'draw') {
+            // Update win stats for AI games
+            let statsResult = { specialMessage: undefined as string | undefined, achievedMilestone: false };
+
+            if (room.gameType === 'human-vs-ai') {
+              console.log('📊 Game ended, updating win stats...');
+              // Find human and AI players
+              const aiPlayer = room.game.players.find(p => p.type === 'ai');
+              const humanPlayer = room.game.players.find(p => p.type === 'human');
+
+              if (humanPlayer && aiPlayer) {
+                console.log('👥 Found players - Human:', humanPlayer.symbol, 'AI:', aiPlayer.symbol);
+                console.log('🏆 Winner:', moveResult.gameState.winner);
+                console.log('📊 Win stats BEFORE update:', JSON.stringify(room.winStats));
+
+                statsResult = RoomModel.updateWinStats(
+                  room,
+                  moveResult.gameState.winner,
+                  humanPlayer.symbol
+                );
+
+                console.log('📊 Win stats AFTER update:', JSON.stringify(room.winStats));
+                console.log('✨ Special message:', statsResult.specialMessage);
+              } else {
+                console.log('❌ Could not find human or AI player');
+              }
+            }
+
             setTimeout(() => {
+              console.log('📤 Broadcasting game_over with winStats:', JSON.stringify(room.winStats));
               WebSocketService.broadcastToRoom(room.id, {
                 type: 'game_over',
                 gameId: moveResult.gameState.id,
@@ -519,7 +595,10 @@ export class GomokuController {
                   winner: moveResult.gameState.winner,
                   finalMessage: moveResult.gameState.status === 'won'
                     ? `${moveResult.gameState.winner} wins!`
-                    : 'Game ended in a draw!'
+                    : 'Game ended in a draw!',
+                  winStats: room.winStats, // Include win stats
+                  specialMessage: statsResult.specialMessage, // Milestone message
+                  achievedMilestone: statsResult.achievedMilestone
                 },
                 timestamp: new Date()
               });
@@ -528,19 +607,55 @@ export class GomokuController {
         }, 100);
       }
 
-      // Check if game ended (for non-AI games)
+      // Check if game ended (for non-AI games or when human wins in AI game)
       if (!moveResult.aiMove && (moveResult.gameState.status === 'won' || moveResult.gameState.status === 'draw')) {
+        console.log('📤 Broadcasting game_over (human move ended game)');
+
+        // Update win stats for AI games BEFORE sending the message
+        let statsResult = { specialMessage: undefined as string | undefined, achievedMilestone: false };
+        if (room.gameType === 'human-vs-ai') {
+          console.log('📊 Updating win stats for human win...');
+          const aiPlayer = room.game.players.find(p => p.type === 'ai');
+          const humanPlayer = room.game.players.find(p => p.type === 'human');
+
+          if (humanPlayer && aiPlayer) {
+            console.log('👥 Found players - Human:', humanPlayer.symbol, 'AI:', aiPlayer.symbol);
+            console.log('🏆 Winner:', moveResult.gameState.winner);
+            console.log('📊 Win stats BEFORE update:', JSON.stringify(room.winStats));
+
+            statsResult = RoomModel.updateWinStats(
+              room,
+              moveResult.gameState.winner,
+              humanPlayer.symbol
+            );
+
+            console.log('📊 Win stats AFTER update:', JSON.stringify(room.winStats));
+            console.log('✨ Special message:', statsResult.specialMessage);
+          }
+        }
+
         setTimeout(() => {
+          // Include winStats if it's an AI game
+          const messageData: any = {
+            gameState: moveResult.gameState,
+            winner: moveResult.gameState.winner,
+            finalMessage: moveResult.gameState.status === 'won'
+              ? `${moveResult.gameState.winner} wins!`
+              : 'Game ended in a draw!'
+          };
+
+          // Add winStats for AI games
+          if (room.gameType === 'human-vs-ai' && room.winStats) {
+            messageData.winStats = room.winStats;
+            messageData.specialMessage = statsResult.specialMessage;
+            messageData.achievedMilestone = statsResult.achievedMilestone;
+            console.log('📊 Including winStats in game_over:', JSON.stringify(room.winStats));
+          }
+
           WebSocketService.broadcastToRoom(room.id, {
             type: 'game_over',
             gameId: moveResult.gameState.id,
-            data: {
-              gameState: moveResult.gameState,
-              winner: moveResult.gameState.winner,
-              finalMessage: moveResult.gameState.status === 'won'
-                ? `${moveResult.gameState.winner} wins!`
-                : 'Game ended in a draw!'
-            },
+            data: messageData,
             timestamp: new Date()
           });
         }, 50);
