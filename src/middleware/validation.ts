@@ -12,7 +12,7 @@
  * - Provide clear error messages for debugging
  */
 
-import { logger } from "@/utils/logger";
+import { logger } from "../utils/logger";
 
 // Validation schemas for different endpoints
 interface ValidationSchema {

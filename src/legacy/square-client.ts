@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { SquareClient } from "square";
 import type { SquareOrder, SquareWebhookEvent } from "./types";
 import { formatOrderForDisplay, handleBigIntSerialization, log } from "./utils";
-import { logger } from "@/utils/logger";
+import { logger } from "../utils/logger";
 
 // Initialize Square client
 const token = process.env.SQUARE_ACCESS_TOKEN;

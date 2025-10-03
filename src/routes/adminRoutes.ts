@@ -6,7 +6,7 @@ import AdminController from '../controllers/AdminController';
 import { rateLimitMiddleware } from '../middleware/rateLimit';
 import { handleCorsPrelight } from '../middleware/cors';
 import ResponseView from '../views/ResponseView';
-import { logger } from '@/utils/logger';
+import { logger } from '../utils/logger';
 
 /**
  * Admin Routes Handler

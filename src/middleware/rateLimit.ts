@@ -2,7 +2,7 @@
 // RATE LIMITING MIDDLEWARE - Prevents abuse and ensures fair usage
 // =================================================================
 
-import { logger } from "@/utils/logger";
+import { logger } from "../utils/logger";
 
 /**
  * Rate Limiting for Gomoku server
@@ -21,9 +21,9 @@ interface RateLimitEntry {
 }
 
 interface RateLimitConfig {
-  windowMs: number;    // Time window in milliseconds
+  windowMs: number; // Time window in milliseconds
   maxRequests: number; // Max requests per window
-  message: string;     // Error message
+  message: string; // Error message
 }
 
 // Different rate limits for different endpoints
@@ -32,29 +32,30 @@ const RATE_LIMITS: Record<string, RateLimitConfig> = {
   general: {
     windowMs: 15 * 60 * 1000, // 15 minutes
     maxRequests: 100,
-    message: 'Too many requests. Please try again later.'
+    message: "Too many requests. Please try again later.",
   },
 
   // Game creation (more restrictive)
   gameCreation: {
     windowMs: 10 * 60 * 1000, // 10 minutes
     maxRequests: 5,
-    message: 'Too many games created. Please wait before creating another game.'
+    message:
+      "Too many games created. Please wait before creating another game.",
   },
 
   // Game moves (moderate)
   gameMoves: {
     windowMs: 1 * 60 * 1000, // 1 minute
     maxRequests: 60, // 1 move per second average
-    message: 'Too many moves. Please slow down.'
+    message: "Too many moves. Please slow down.",
   },
 
   // Admin endpoints (very restrictive)
   admin: {
     windowMs: 5 * 60 * 1000, // 5 minutes
     maxRequests: 10,
-    message: 'Too many admin requests. Please wait.'
-  }
+    message: "Too many admin requests. Please wait.",
+  },
 };
 
 // In-memory store for rate limiting
@@ -96,7 +97,9 @@ class RateLimitStore {
     }
 
     if (cleanedCount > 0) {
-      logger.info(`🧹 Rate limit cleanup: removed ${cleanedCount} expired entries`);
+      logger.info(
+        `🧹 Rate limit cleanup: removed ${cleanedCount} expired entries`
+      );
     }
   }
 
@@ -114,11 +117,11 @@ const rateLimitStore = new RateLimitStore();
  */
 const getClientId = (request: Request): string => {
   // Try to get real IP from headers (for proxies)
-  const forwarded = request.headers.get('x-forwarded-for');
-  const realIp = request.headers.get('x-real-ip');
+  const forwarded = request.headers.get("x-forwarded-for");
+  const realIp = request.headers.get("x-real-ip");
 
   if (forwarded) {
-    return forwarded.split(',')[0]?.trim() || 'unknown';
+    return forwarded.split(",")[0]?.trim() || "unknown";
   }
 
   if (realIp) {
@@ -126,26 +129,26 @@ const getClientId = (request: Request): string => {
   }
 
   // Fallback to connection info (might not be available in all environments)
-  return 'unknown';
+  return "unknown";
 };
 
 /**
  * Determines rate limit type based on request path
  */
 const getRateLimitType = (path: string): string => {
-  if (path.includes('/admin/')) {
-    return 'admin';
+  if (path.includes("/admin/")) {
+    return "admin";
   }
 
-  if (path.includes('/quick-start')) {
-    return 'gameCreation';
+  if (path.includes("/quick-start")) {
+    return "gameCreation";
   }
 
-  if (path.includes('/move')) {
-    return 'gameMoves';
+  if (path.includes("/move")) {
+    return "gameMoves";
   }
 
-  return 'general';
+  return "general";
 };
 
 /**
@@ -159,7 +162,7 @@ export const rateLimitMiddleware = (request: Request): Response | null => {
   const config = RATE_LIMITS[limitType];
 
   if (!config) {
-    logger.warn('No rate limit config for type', { limitType });
+    logger.warn("No rate limit config for type", { limitType });
     return null; // Allow request if no config
   }
 
@@ -174,10 +177,12 @@ export const rateLimitMiddleware = (request: Request): Response | null => {
     rateLimitStore.set(key, {
       count: 1,
       resetTime: now + config.windowMs,
-      firstRequest: now
+      firstRequest: now,
     });
 
-    logger.info(`🚦 Rate limit: First request from ${clientId} for ${limitType}`);
+    logger.info(
+      `🚦 Rate limit: First request from ${clientId} for ${limitType}`
+    );
     return null; // Allow request
   }
 
@@ -187,7 +192,7 @@ export const rateLimitMiddleware = (request: Request): Response | null => {
     rateLimitStore.set(key, {
       count: 1,
       resetTime: now + config.windowMs,
-      firstRequest: now
+      firstRequest: now,
     });
 
     logger.info(`🚦 Rate limit: Window reset for ${clientId} for ${limitType}`);
@@ -202,35 +207,40 @@ export const rateLimitMiddleware = (request: Request): Response | null => {
   if (entry.count > config.maxRequests) {
     const timeRemaining = Math.ceil((entry.resetTime - now) / 1000);
 
-    logger.warn('Rate limit exceeded', {
+    logger.warn("Rate limit exceeded", {
       clientId,
       limitType,
       count: entry.count,
-      maxRequests: config.maxRequests
+      maxRequests: config.maxRequests,
     });
 
-    return new Response(JSON.stringify({
-      success: false,
-      error: config.message,
-      retryAfter: timeRemaining,
-      limit: config.maxRequests,
-      remaining: 0,
-      resetTime: new Date(entry.resetTime).toISOString()
-    }), {
-      status: 429, // Too Many Requests
-      headers: {
-        'Content-Type': 'application/json',
-        'Retry-After': timeRemaining.toString(),
-        'X-RateLimit-Limit': config.maxRequests.toString(),
-        'X-RateLimit-Remaining': '0',
-        'X-RateLimit-Reset': entry.resetTime.toString()
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: config.message,
+        retryAfter: timeRemaining,
+        limit: config.maxRequests,
+        remaining: 0,
+        resetTime: new Date(entry.resetTime).toISOString(),
+      }),
+      {
+        status: 429, // Too Many Requests
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": timeRemaining.toString(),
+          "X-RateLimit-Limit": config.maxRequests.toString(),
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": entry.resetTime.toString(),
+        },
       }
-    });
+    );
   }
 
   // Request allowed - add rate limit headers
   const remaining = config.maxRequests - entry.count;
-  logger.info(`🚦 Rate limit: ${clientId} for ${limitType} (${entry.count}/${config.maxRequests})`);
+  logger.info(
+    `🚦 Rate limit: ${clientId} for ${limitType} (${entry.count}/${config.maxRequests})`
+  );
 
   // We'll add headers in the response later
   // Store info for response headers
@@ -238,7 +248,7 @@ export const rateLimitMiddleware = (request: Request): Response | null => {
     limit: config.maxRequests,
     remaining,
     resetTime: entry.resetTime,
-    used: entry.count
+    used: entry.count,
   };
 
   return null; // Allow request
@@ -247,7 +257,10 @@ export const rateLimitMiddleware = (request: Request): Response | null => {
 /**
  * Adds rate limit headers to response
  */
-export const addRateLimitHeaders = (response: Response, request: Request): Response => {
+export const addRateLimitHeaders = (
+  response: Response,
+  request: Request
+): Response => {
   const rateLimitInfo = (request as any).rateLimit;
 
   if (!rateLimitInfo) {
@@ -256,15 +269,15 @@ export const addRateLimitHeaders = (response: Response, request: Request): Respo
 
   // Add headers to existing response
   const headers = new Headers(response.headers);
-  headers.set('X-RateLimit-Limit', rateLimitInfo.limit.toString());
-  headers.set('X-RateLimit-Remaining', rateLimitInfo.remaining.toString());
-  headers.set('X-RateLimit-Reset', rateLimitInfo.resetTime.toString());
-  headers.set('X-RateLimit-Used', rateLimitInfo.used.toString());
+  headers.set("X-RateLimit-Limit", rateLimitInfo.limit.toString());
+  headers.set("X-RateLimit-Remaining", rateLimitInfo.remaining.toString());
+  headers.set("X-RateLimit-Reset", rateLimitInfo.resetTime.toString());
+  headers.set("X-RateLimit-Used", rateLimitInfo.used.toString());
 
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
-    headers
+    headers,
   });
 };
 
@@ -279,7 +292,7 @@ export const checkWebSocketRateLimit = (request: Request): boolean => {
   // Allow 3 WebSocket connections per minute per IP
   const config = {
     windowMs: 60 * 1000, // 1 minute
-    maxRequests: 3
+    maxRequests: 3,
   };
 
   const entry = rateLimitStore.get(key);
@@ -288,7 +301,7 @@ export const checkWebSocketRateLimit = (request: Request): boolean => {
     rateLimitStore.set(key, {
       count: 1,
       resetTime: now + config.windowMs,
-      firstRequest: now
+      firstRequest: now,
     });
     return true;
   }
@@ -297,7 +310,7 @@ export const checkWebSocketRateLimit = (request: Request): boolean => {
     rateLimitStore.set(key, {
       count: 1,
       resetTime: now + config.windowMs,
-      firstRequest: now
+      firstRequest: now,
     });
     return true;
   }
@@ -323,7 +336,7 @@ export const getRateLimitStats = (): {
   const stats = {
     totalEntries: rateLimitStore.getSize(),
     byType: {} as Record<string, number>,
-    topClients: [] as Array<{ client: string; requests: number }>
+    topClients: [] as Array<{ client: string; requests: number }>,
   };
 
   // This would require accessing the internal store
@@ -335,5 +348,5 @@ export const getRateLimitStats = (): {
 export const rateLimitConfig = {
   RATE_LIMITS,
   getClientId,
-  getRateLimitType
+  getRateLimitType,
 };
