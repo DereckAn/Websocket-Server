@@ -391,8 +391,6 @@ export class RoomModel {
    * Resets the game in the same room (keeps win stats and players)
    */
   static resetGameInRoom(room: Room): void {
-    console.log(`🔄 Resetting game in room ${room.id}, keeping win stats`);
-
     // Get current players
     const players = room.game.players;
 
@@ -409,8 +407,6 @@ export class RoomModel {
     // Update room with new game (winStats are preserved in room)
     room.game = newGameState;
     room.lastActivity = new Date();
-
-    console.log(`✅ Game reset in room ${room.id}. Win stats: H:${room.winStats?.humanWins} AI:${room.winStats?.aiWins} D:${room.winStats?.draws}`);
   }
 
   /**
@@ -438,30 +434,24 @@ export class RoomModel {
       // Draw
       room.winStats.draws++;
       room.winStats.consecutiveHumanWins = 0;
-      console.log(`📊 Room ${room.id} stats: Draw! (H:${room.winStats.humanWins} AI:${room.winStats.aiWins} D:${room.winStats.draws})`);
     } else if (winner === humanSymbol) {
       // Human won
       room.winStats.humanWins++;
       room.winStats.consecutiveHumanWins++;
 
-      console.log(`🏆 Room ${room.id} stats: Human wins! Consecutive: ${room.winStats.consecutiveHumanWins} (H:${room.winStats.humanWins} AI:${room.winStats.aiWins})`);
-
       // Check for 5 consecutive wins milestone
       if (room.winStats.consecutiveHumanWins === 5) {
         achievedMilestone = true;
         specialMessage = "🎉 CONGRATULATIONS! You've defeated the AI 5 times in a row! You've earned a special reward! 🏆";
-        console.log(`🎊 MILESTONE ACHIEVED in room ${room.id}! 5 consecutive human wins!`);
       } else if (room.winStats.consecutiveHumanWins > 5 && room.winStats.consecutiveHumanWins % 5 === 0) {
         // Additional milestones every 5 wins
         achievedMilestone = true;
         specialMessage = `🔥 INCREDIBLE! ${room.winStats.consecutiveHumanWins} wins in a row! You're unstoppable! 🔥`;
-        console.log(`🔥 SUPER MILESTONE in room ${room.id}! ${room.winStats.consecutiveHumanWins} consecutive wins!`);
       }
     } else {
       // AI won
       room.winStats.aiWins++;
       room.winStats.consecutiveHumanWins = 0;
-      console.log(`🤖 Room ${room.id} stats: AI wins! (H:${room.winStats.humanWins} AI:${room.winStats.aiWins} D:${room.winStats.draws})`);
     }
 
     return { specialMessage, achievedMilestone };

@@ -2,6 +2,9 @@
 // CORS MIDDLEWARE - Cross-Origin Resource Sharing configuration
 // =================================================================
 
+import { env, isProduction } from '../config/env';
+import { logger } from '../utils/logger';
+
 /**
  * CORS Middleware for Gomoku server
  *
@@ -17,7 +20,7 @@ const getAllowedOrigins = (): string[] => {
   const origins: string[] = [];
 
   // Development origins
-  if (process.env.NODE_ENV !== 'production') {
+  if (!isProduction()) {
     origins.push(
       'http://localhost:3000',
       'http://localhost:3001',  // pag_mich dev server
@@ -26,18 +29,12 @@ const getAllowedOrigins = (): string[] => {
     );
   }
 
-  // Environment-based origins (for both dev and production)
-  if (process.env.CORS_ORIGIN) {
-    const envOrigins = process.env.CORS_ORIGIN.split(',').map(origin => origin.trim());
-    origins.push(...envOrigins);
-  }
+  // Add configured origins from environment
+  origins.push(...env.ALLOWED_ORIGINS);
 
-  // Default production patterns (Vercel)
-  if (process.env.NODE_ENV === 'production') {
-    origins.push(
-      'https://*.vercel.app',
-      'https://your-app.vercel.app' // Replace with actual domain
-    );
+  // Warn if no origins configured in production
+  if (isProduction() && origins.length === 0) {
+    logger.warn('No ALLOWED_ORIGINS configured in production! This is insecure.');
   }
 
   // Remove duplicates and return
@@ -103,7 +100,7 @@ export const handleCorsPrelight = (request: Request): Response => {
   const origin = request.headers.get('origin');
   const headers = createCorsHeaders(origin);
 
-  console.log(`🔗 CORS preflight from origin: ${origin || 'none'}`);
+  logger.debug(`CORS preflight from origin: ${origin || 'none'}`);
 
   return new Response(null, {
     status: 200,
@@ -123,7 +120,7 @@ export const addCorsHeaders = (response: Response, request: Request): Response =
 
   if (hasCorsHeaders) {
     // Response already has CORS headers, don't add more
-    console.log('🔗 Response already has CORS headers, skipping middleware');
+    logger.debug('Response already has CORS headers, skipping middleware');
     return response;
   }
 
@@ -140,7 +137,7 @@ export const addCorsHeaders = (response: Response, request: Request): Response =
     }
   });
 
-  console.log('🔗 Added CORS headers via middleware');
+  logger.debug('Added CORS headers via middleware');
   return newResponse;
 };
 
@@ -158,16 +155,16 @@ export const validateWebSocketOrigin = (request: Request): boolean => {
   const origin = request.headers.get('origin');
 
   if (!origin) {
-    console.warn('⚠️ WebSocket connection without origin header');
-    return true; // Allow in development
+    logger.warn('WebSocket connection without origin header');
+    return !isProduction(); // Allow in development, block in production
   }
 
   const allowed = isOriginAllowed(origin);
 
   if (!allowed) {
-    console.error(`❌ WebSocket connection from disallowed origin: ${origin}`);
+    logger.error(`WebSocket connection from disallowed origin: ${origin}`);
   } else {
-    console.log(`✅ WebSocket connection from allowed origin: ${origin}`);
+    logger.debug(`WebSocket connection from allowed origin: ${origin}`);
   }
 
   return allowed;

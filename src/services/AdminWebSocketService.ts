@@ -1,4 +1,5 @@
 // =================================================================
+import { logger } from '../utils/logger';
 // ADMIN WEBSOCKET SERVICE - Real-time communication for Square admin
 // =================================================================
 
@@ -32,7 +33,7 @@ export class AdminWebSocketService {
    */
   static initialize(): void {
     this.startKeepAlive();
-    console.log('🔌 Admin WebSocket service initialized');
+    logger.info('🔌 Admin WebSocket service initialized');
   }
 
   /**
@@ -71,7 +72,7 @@ export class AdminWebSocketService {
     // Update Square service with new connection count
     SquareService.updateAdminConnectionCount(this.connections.size);
 
-    console.log(`👤 Admin client connected: ${clientId} (total: ${this.connections.size})`);
+    logger.info(`👤 Admin client connected: ${clientId} (total: ${this.connections.size})`);
 
     return clientId;
   }
@@ -85,11 +86,11 @@ export class AdminWebSocketService {
       const connection = this.findConnectionByWs(ws);
 
       if (!connection) {
-        console.warn('⚠️ Received message from unknown WebSocket connection');
+        logger.warn('⚠️ Received message from unknown WebSocket connection');
         return;
       }
 
-      console.log(`📨 Admin message from ${connection.clientId}: ${data.type}`);
+      logger.info(`📨 Admin message from ${connection.clientId}: ${data.type}`);
 
       switch (data.type) {
         case 'admin-connect':
@@ -109,7 +110,7 @@ export class AdminWebSocketService {
           break;
 
         default:
-          console.warn(`🤷 Unknown admin message type: ${data.type}`);
+          logger.warn(`🤷 Unknown admin message type: ${data.type}`);
           this.sendError(connection.clientId, `Unknown message type: ${data.type}`);
       }
 
@@ -117,7 +118,7 @@ export class AdminWebSocketService {
       connection.lastPing = new Date();
 
     } catch (error) {
-      console.error('❌ Error parsing admin WebSocket message:', error);
+      logger.error('❌ Error parsing admin WebSocket message:', error);
       const connection = this.findConnectionByWs(ws);
       if (connection) {
         this.sendError(connection.clientId, 'Invalid message format');
@@ -139,12 +140,12 @@ export class AdminWebSocketService {
       // Update Square service with new connection count
       SquareService.updateAdminConnectionCount(this.connections.size);
 
-      console.log(`👋 Admin client disconnected: ${connection.clientId}`, {
+      logger.info(`👋 Admin client disconnected: ${connection.clientId}`, {
         duration: `${Math.round(connectionDuration / 1000)}s`,
         remaining: this.connections.size
       });
     } else {
-      console.warn('⚠️ Unknown admin WebSocket connection closed');
+      logger.warn('⚠️ Unknown admin WebSocket connection closed');
     }
   }
 
@@ -155,11 +156,11 @@ export class AdminWebSocketService {
     const connectedClients = this.connections.size;
 
     if (connectedClients === 0) {
-      console.log('📭 No admin clients connected for broadcast');
+      logger.info('📭 No admin clients connected for broadcast');
       return;
     }
 
-    console.log(`📢 Broadcasting to ${connectedClients} admin clients: ${message.type}`);
+    logger.info(`📢 Broadcasting to ${connectedClients} admin clients: ${message.type}`);
 
     let successCount = 0;
     let failureCount = 0;
@@ -175,7 +176,7 @@ export class AdminWebSocketService {
           failureCount++;
         }
       } catch (error) {
-        console.warn(`⚠️ Failed to send message to admin client ${clientId}:`, error);
+        logger.warn(`⚠️ Failed to send message to admin client ${clientId}:`, error);
         this.connections.delete(clientId);
         failureCount++;
       }
@@ -186,7 +187,7 @@ export class AdminWebSocketService {
       SquareService.updateAdminConnectionCount(this.connections.size);
     }
 
-    console.log(`✅ Broadcast complete: ${successCount} successful, ${failureCount} failed`);
+    logger.info(`✅ Broadcast complete: ${successCount} successful, ${failureCount} failed`);
   }
 
   /**
@@ -196,7 +197,7 @@ export class AdminWebSocketService {
     const connection = this.connections.get(clientId);
 
     if (!connection || !connection.isAlive) {
-      console.warn(`⚠️ Cannot send message to client ${clientId}: not connected`);
+      logger.warn(`⚠️ Cannot send message to client ${clientId}: not connected`);
       return false;
     }
 
@@ -204,7 +205,7 @@ export class AdminWebSocketService {
       connection.ws.send(JSON.stringify(message));
       return true;
     } catch (error) {
-      console.error(`❌ Error sending message to client ${clientId}:`, error);
+      logger.error(`❌ Error sending message to client ${clientId}:`, error);
       this.connections.delete(clientId);
       SquareService.updateAdminConnectionCount(this.connections.size);
       return false;
@@ -275,7 +276,7 @@ export class AdminWebSocketService {
       const timeSinceLastPing = now - (connection.lastPing?.getTime() || connection.connectedAt.getTime());
 
       if (timeSinceLastPing > this.CONNECTION_TIMEOUT) {
-        console.log(`🧹 Removing stale admin connection: ${clientId}`);
+        logger.info(`🧹 Removing stale admin connection: ${clientId}`);
         this.connections.delete(clientId);
         removedCount++;
       }
@@ -301,7 +302,7 @@ export class AdminWebSocketService {
       this.cleanupStaleConnections();
     }, this.PING_INTERVAL);
 
-    console.log(`💓 Admin keep-alive started (${this.PING_INTERVAL}ms interval)`);
+    logger.info(`💓 Admin keep-alive started (${this.PING_INTERVAL}ms interval)`);
   }
 
   /**
@@ -448,14 +449,14 @@ export class AdminWebSocketService {
       try {
         connection.ws.close();
       } catch (error) {
-        console.warn('Error closing admin connection:', error);
+        logger.warn('Error closing admin connection:', error);
       }
     }
 
     this.connections.clear();
     SquareService.updateAdminConnectionCount(0);
 
-    console.log('🛑 Admin WebSocket service stopped');
+    logger.info('🛑 Admin WebSocket service stopped');
   }
 }
 

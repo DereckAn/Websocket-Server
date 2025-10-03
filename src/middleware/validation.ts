@@ -12,6 +12,8 @@
  * - Provide clear error messages for debugging
  */
 
+import { logger } from "@/utils/logger";
+
 // Validation schemas for different endpoints
 interface ValidationSchema {
   [key: string]: {
@@ -188,7 +190,7 @@ const validateData = (data: any, schema: ValidationSchema): ValidationResult => 
   // Check for unexpected fields (strict mode)
   for (const fieldName of Object.keys(data)) {
     if (!schema[fieldName]) {
-      console.warn(`⚠️ Unexpected field in request: ${fieldName}`);
+      logger.warn('Unexpected field in request', { fieldName });
       // Don't fail validation, just warn
     }
   }
@@ -204,7 +206,7 @@ const validateData = (data: any, schema: ValidationSchema): ValidationResult => 
  * Validates quick start request
  */
 export const validateQuickStartRequest = (data: any): ValidationResult => {
-  console.log('🔍 Validating quick start request');
+//   logger.info('🔍 Validating quick start request');
   return validateData(data, QUICK_START_SCHEMA);
 };
 
@@ -212,7 +214,7 @@ export const validateQuickStartRequest = (data: any): ValidationResult => {
  * Validates move request
  */
 export const validateMoveRequest = (data: any): ValidationResult => {
-  console.log('🔍 Validating move request');
+//   logger.info('🔍 Validating move request');
   return validateData(data, MOVE_SCHEMA);
 };
 
@@ -220,7 +222,7 @@ export const validateMoveRequest = (data: any): ValidationResult => {
  * Validates WebSocket message
  */
 export const validateWebSocketMessage = (data: any): ValidationResult => {
-  console.log('🔍 Validating WebSocket message');
+//   logger.info('🔍 Validating WebSocket message');
 
   const result = validateData(data, WEBSOCKET_MESSAGE_SCHEMA);
 
@@ -359,7 +361,7 @@ export const validationMiddleware = (
           });
       }
     } catch (error) {
-      console.error('❌ Validation error:', error);
+      logger.error('Validation error', error);
       resolve({
         isValid: false,
         errors: ['Invalid request format']

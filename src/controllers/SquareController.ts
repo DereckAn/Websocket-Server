@@ -5,6 +5,7 @@
 import { SquareService } from '../services/SquareService';
 import { AdminWebSocketService } from '../services/AdminWebSocketService';
 import { OrderModel } from '../models/OrderModel';
+import { logger } from '../utils/logger';
 import ResponseView from '../views/ResponseView';
 import type {
   SquareWebhookEvent,
@@ -33,20 +34,20 @@ export class SquareController {
       const signature = request.headers.get('x-square-hmacsha256-signature');
       const body = await request.text();
 
-      console.log('📥 Square webhook received');
+      logger.info('📥 Square webhook received');
 
       // Parse webhook body
       let parsedBody;
       try {
         parsedBody = JSON.parse(body);
       } catch (parseError) {
-        console.error('❌ Invalid JSON in webhook body:', parseError);
+        logger.error('❌ Invalid JSON in webhook body:', parseError);
         return ResponseView.badRequest('Invalid JSON in request body');
       }
 
       // Handle test events (skip signature verification)
       if (parsedBody.type === 'test') {
-        console.log('🧪 Processing test webhook event');
+        logger.info('🧪 Processing test webhook event');
 
         const testResult = SquareService.processTestEvent(parsedBody.data || {});
 
@@ -69,7 +70,7 @@ export class SquareController {
 
       // Verify signature for real webhooks
       if (!signature) {
-        console.error('❌ Missing signature in webhook request');
+        logger.error('❌ Missing signature in webhook request');
         return ResponseView.badRequest('Missing x-square-hmacsha256-signature header');
       }
 
@@ -83,7 +84,7 @@ export class SquareController {
       const verification = SquareService.verifyWebhookSignature(webhookRequest);
 
       if (!verification.isValid) {
-        console.error('❌ Webhook signature verification failed:', verification.error);
+        logger.error('❌ Webhook signature verification failed:', verification.error);
         return ResponseView.forbidden('Invalid webhook signature');
       }
 
@@ -92,7 +93,7 @@ export class SquareController {
       const result = await SquareService.processWebhookEvents(events);
 
       if (!result.success) {
-        console.error('❌ Webhook processing failed:', result.error);
+        logger.error('❌ Webhook processing failed:', result.error);
         return ResponseView.internalServerError('Failed to process webhook events');
       }
 
@@ -103,7 +104,9 @@ export class SquareController {
         }
       }
 
-      console.log(`✅ Webhook processed successfully: ${result.processedOrders} orders`);
+      logger.info('Webhook processed successfully', {
+        processedOrders: result.processedOrders
+      });
 
       return ResponseView.success({
         processed: true,
@@ -112,7 +115,7 @@ export class SquareController {
       });
 
     } catch (error) {
-      console.error('❌ Square webhook error:', error);
+      logger.error('❌ Square webhook error:', error);
       return ResponseView.internalServerError('Webhook processing failed');
     }
   }
@@ -123,7 +126,7 @@ export class SquareController {
    */
   static async handleOrderLookup(request: Request, orderId: string): Promise<Response> {
     try {
-      console.log(`🔍 Order lookup request: ${orderId}`);
+      logger.info('Order lookup request', { orderId });
 
       // Validate order ID format
       if (!OrderModel.isValidOrderId(orderId)) {
@@ -137,12 +140,12 @@ export class SquareController {
         return ResponseView.notFound('Order');
       }
 
-      console.log(`📦 Order found: ${orderId} (${order.state})`);
+      logger.info('Order found', { orderId, state: order.state });
 
       return ResponseView.success(order);
 
     } catch (error) {
-      console.error(`❌ Order lookup error for ${orderId}:`, error);
+      logger.error(`❌ Order lookup error for ${orderId}:`, error);
       return ResponseView.internalServerError('Failed to retrieve order');
     }
   }
@@ -155,7 +158,7 @@ export class SquareController {
     try {
       const body = await request.json();
 
-      console.log('🧪 Test event from admin panel');
+      logger.info('🧪 Test event from admin panel');
 
       const result = SquareService.processTestEvent(body);
 
@@ -176,7 +179,7 @@ export class SquareController {
       });
 
     } catch (error) {
-      console.error('❌ Test event error:', error);
+      logger.error('❌ Test event error:', error);
       return ResponseView.badRequest('Invalid test event request');
     }
   }
@@ -207,7 +210,7 @@ export class SquareController {
       }
 
     } catch (error) {
-      console.error('❌ Square health check error:', error);
+      logger.error('❌ Square health check error:', error);
       return ResponseView.internalServerError('Health check failed');
     }
   }
@@ -235,7 +238,7 @@ export class SquareController {
       });
 
     } catch (error) {
-      console.error('❌ Square stats error:', error);
+      logger.error('❌ Square stats error:', error);
       return ResponseView.internalServerError('Failed to get statistics');
     }
   }
@@ -251,7 +254,7 @@ export class SquareController {
       return ResponseView.success(connectionStats);
 
     } catch (error) {
-      console.error('❌ Square connections error:', error);
+      logger.error('❌ Square connections error:', error);
       return ResponseView.internalServerError('Failed to get connection statistics');
     }
   }
@@ -264,7 +267,9 @@ export class SquareController {
     try {
       const removedConnections = AdminWebSocketService.cleanupStaleConnections();
 
-      console.log(`🧹 Square admin cleanup: ${removedConnections} stale connections removed`);
+      logger.info('Square admin cleanup', {
+        removedConnections
+      });
 
       return ResponseView.success({
         cleaned: true,
@@ -273,7 +278,7 @@ export class SquareController {
       });
 
     } catch (error) {
-      console.error('❌ Square cleanup error:', error);
+      logger.error('❌ Square cleanup error:', error);
       return ResponseView.internalServerError('Cleanup failed');
     }
   }
@@ -286,19 +291,19 @@ export class SquareController {
     server: any
   ): Response | undefined {
     try {
-      console.log('🔌 Admin WebSocket upgrade request');
+      logger.info('🔌 Admin WebSocket upgrade request');
 
       // Upgrade the connection
       if (server.upgrade(request)) {
         // WebSocket upgrade successful, will be handled by websocket handlers
         return undefined;
       } else {
-        console.error('❌ Failed to upgrade admin WebSocket connection');
+        logger.error('❌ Failed to upgrade admin WebSocket connection');
         return ResponseView.badRequest('WebSocket upgrade failed');
       }
 
     } catch (error) {
-      console.error('❌ Admin WebSocket upgrade error:', error);
+      logger.error('❌ Admin WebSocket upgrade error:', error);
       return ResponseView.internalServerError('WebSocket upgrade failed');
     }
   }
@@ -310,7 +315,7 @@ export class SquareController {
     try {
       AdminWebSocketService.handleConnection(ws);
     } catch (error) {
-      console.error('❌ Admin WebSocket open error:', error);
+      logger.error('❌ Admin WebSocket open error:', error);
       ws.close();
     }
   }
@@ -322,7 +327,7 @@ export class SquareController {
     try {
       AdminWebSocketService.handleMessage(ws, message);
     } catch (error) {
-      console.error('❌ Admin WebSocket message error:', error);
+      logger.error('❌ Admin WebSocket message error:', error);
       // Don't close connection on message errors, just log
     }
   }
@@ -334,7 +339,7 @@ export class SquareController {
     try {
       AdminWebSocketService.handleClose(ws);
     } catch (error) {
-      console.error('❌ Admin WebSocket close error:', error);
+      logger.error('❌ Admin WebSocket close error:', error);
     }
   }
 

@@ -1,4 +1,5 @@
 // =================================================================
+import { logger } from '../utils/logger';
 // GOMOKU ROUTES - Route definitions for Gomoku game endpoints
 // =================================================================
 
@@ -71,7 +72,7 @@ export class GomokuRoutes {
       }
 
     } catch (error) {
-      console.error('❌ Error in Gomoku routes:', error);
+      logger.error('❌ Error in Gomoku routes:', error);
       return ResponseView.internalServerError('Route handling failed');
     }
   }
@@ -117,10 +118,10 @@ export class GomokuRoutes {
    */
   private static async handleQuickStart(request: Request): Promise<Response> {
     try {
-      console.log('🚀 Handling quick start request');
+      logger.info('🚀 Handling quick start request');
       return await GomokuController.quickStart(request);
     } catch (error) {
-      console.error('❌ Quick start error:', error);
+      logger.error('❌ Quick start error:', error);
       return ResponseView.internalServerError('Failed to create game');
     }
   }
@@ -130,7 +131,7 @@ export class GomokuRoutes {
    */
   private static async handleMakeMove(request: Request, gameId: string): Promise<Response> {
     try {
-      console.log(`🎯 Handling move request for game ${gameId}`);
+      logger.info(`🎯 Handling move request for game ${gameId}`);
 
       // Validate gameId
       if (!this.isValidGameId(gameId)) {
@@ -139,7 +140,7 @@ export class GomokuRoutes {
 
       return await GomokuController.makeMove(request, gameId);
     } catch (error) {
-      console.error(`❌ Make move error for game ${gameId}:`, error);
+      logger.error(`❌ Make move error for game ${gameId}:`, error);
       return ResponseView.internalServerError('Failed to process move');
     }
   }
@@ -149,7 +150,7 @@ export class GomokuRoutes {
    */
   private static async handleGetGameState(request: Request, gameId: string): Promise<Response> {
     try {
-      console.log(`📊 Handling game state request for ${gameId}`);
+      logger.info(`📊 Handling game state request for ${gameId}`);
 
       // Validate gameId
       if (!this.isValidGameId(gameId)) {
@@ -158,7 +159,7 @@ export class GomokuRoutes {
 
       return await GomokuController.getGameState(request, gameId);
     } catch (error) {
-      console.error(`❌ Get game state error for ${gameId}:`, error);
+      logger.error(`❌ Get game state error for ${gameId}:`, error);
       return ResponseView.internalServerError('Failed to get game state');
     }
   }
@@ -168,7 +169,7 @@ export class GomokuRoutes {
    */
   private static async handleEndGame(request: Request, gameId: string): Promise<Response> {
     try {
-      console.log(`🔚 Handling end game request for ${gameId}`);
+      logger.info(`🔚 Handling end game request for ${gameId}`);
 
       // Validate gameId
       if (!this.isValidGameId(gameId)) {
@@ -177,7 +178,7 @@ export class GomokuRoutes {
 
       return await GomokuController.endGame(request, gameId);
     } catch (error) {
-      console.error(`❌ End game error for ${gameId}:`, error);
+      logger.error(`❌ End game error for ${gameId}:`, error);
       return ResponseView.internalServerError('Failed to end game');
     }
   }
@@ -188,7 +189,7 @@ export class GomokuRoutes {
    */
   private static async handleResetGame(request: Request, gameId: string): Promise<Response> {
     try {
-      console.log(`🔄 Handling reset game request for ${gameId}`);
+      logger.info(`🔄 Handling reset game request for ${gameId}`);
 
       // Validate gameId
       if (!this.isValidGameId(gameId)) {
@@ -197,7 +198,7 @@ export class GomokuRoutes {
 
       return await GomokuController.resetGame(request, gameId);
     } catch (error) {
-      console.error(`❌ Reset game error for ${gameId}:`, error);
+      logger.error(`❌ Reset game error for ${gameId}:`, error);
       return ResponseView.internalServerError('Failed to reset game');
     }
   }

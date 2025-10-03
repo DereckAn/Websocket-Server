@@ -2,6 +2,8 @@
 // SHARED UTILITIES - Common functions used across the application
 // =================================================================
 
+import { logger } from './logger';
+
 /**
  * Generates a unique ID using random strings
  */
@@ -11,21 +13,24 @@ export function generateId(): string {
 
 /**
  * Structured logging with levels
+ * @deprecated Use the main logger from './logger' instead
+ * This function is kept for backward compatibility but should not be used in new code
  */
 export function log(level: 'debug' | 'info' | 'warn' | 'error', message: string, data?: any): void {
-  const timestamp = new Date().toISOString();
-  const logLevel = process.env.LOG_LEVEL || 'info';
-
-  const levels = { debug: 0, info: 1, warn: 2, error: 3 };
-
-  if (levels[level] >= levels[logLevel as keyof typeof levels]) {
-    const prefix = `[${timestamp}] [${level.toUpperCase()}]`;
-
-    if (data) {
-      console.log(`${prefix} ${message}`, data);
-    } else {
-      console.log(`${prefix} ${message}`);
-    }
+  // Delegate to main logger
+  switch (level) {
+    case 'debug':
+      logger.debug(message, data);
+      break;
+    case 'info':
+      logger.info(message, data);
+      break;
+    case 'warn':
+      logger.warn(message, data);
+      break;
+    case 'error':
+      logger.error(message, new Error(message), data);
+      break;
   }
 }
 
@@ -61,11 +66,11 @@ export function validateSquareEnvironment(): {
   const warnings = optional.filter(env => !process.env[env]);
 
   if (missing.length > 0) {
-    log('error', 'Missing required Square environment variables:', missing);
+    logger.error('Missing required Square environment variables', { missing });
   }
 
   if (warnings.length > 0) {
-    log('warn', 'Missing optional Square environment variables:', warnings);
+    logger.warn('Missing optional Square environment variables', { warnings });
   }
 
   return {
@@ -116,7 +121,7 @@ export function safeJsonParse<T>(json: string, fallback: T): T {
   try {
     return JSON.parse(json);
   } catch (error) {
-    log('warn', 'Failed to parse JSON, using fallback:', { error: String(error) });
+    logger.warn('Failed to parse JSON, using fallback', { error: String(error) });
     return fallback;
   }
 }

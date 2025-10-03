@@ -64,7 +64,7 @@ export class OpeningBook {
               { row: this.CENTER - 1, col: this.CENTER + 1 },
               { row: this.CENTER + 1, col: this.CENTER - 1 },
             ];
-            return diagonals[Math.floor(Math.random() * diagonals.length)];
+            return diagonals[Math.floor(Math.random() * diagonals.length)] || null;
           } else {
             // If black didn't play center, take it
             return { row: this.CENTER, col: this.CENTER };
@@ -95,8 +95,10 @@ export class OpeningBook {
     const black1 = blackStones[0];
     const white1 = whiteStones[0];
 
+    if (!black1 || !white1) return null;
+
     // If center opening with diagonal response
-    if (black1.row === this.CENTER && black1.col === this.CENTER) {
+    if (black1?.row === this.CENTER && black1.col === this.CENTER) {
       // Play opposite diagonal for balanced development
       if (white1.row < this.CENTER && white1.col < this.CENTER) {
         return { row: this.CENTER + 1, col: this.CENTER + 1 };
@@ -162,7 +164,7 @@ export class OpeningBook {
     // Return best scored move
     if (centerMoves.length > 0) {
       centerMoves.sort((a, b) => b.score - a.score);
-      return centerMoves[0].pos;
+      return centerMoves[0]?.pos || null;
     }
 
     return null;

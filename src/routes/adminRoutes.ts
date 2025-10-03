@@ -6,6 +6,7 @@ import AdminController from '../controllers/AdminController';
 import { rateLimitMiddleware } from '../middleware/rateLimit';
 import { handleCorsPrelight } from '../middleware/cors';
 import ResponseView from '../views/ResponseView';
+import { logger } from '@/utils/logger';
 
 /**
  * Admin Routes Handler
@@ -94,7 +95,7 @@ export class AdminRoutes {
       }
 
     } catch (error) {
-      console.error('❌ Error in Admin routes:', error);
+      logger.error('❌ Error in Admin routes:', error);
       return ResponseView.internalServerError('Admin route handling failed');
     }
   }
@@ -108,10 +109,10 @@ export class AdminRoutes {
    */
   private static async handleGetStats(request: Request): Promise<Response> {
     try {
-      console.log('📊 Admin: Getting server stats');
+      logger.info('📊 Admin: Getting server stats');
       return await AdminController.getServerStats(request);
     } catch (error) {
-      console.error('❌ Admin stats error:', error);
+      logger.error('❌ Admin stats error:', error);
       return ResponseView.internalServerError('Failed to get server statistics');
     }
   }
@@ -121,10 +122,10 @@ export class AdminRoutes {
    */
   private static async handleGetRooms(request: Request): Promise<Response> {
     try {
-      console.log('🏠 Admin: Getting rooms');
+      logger.info('🏠 Admin: Getting rooms');
       return await AdminController.getRooms(request);
     } catch (error) {
-      console.error('❌ Admin rooms error:', error);
+      logger.error('❌ Admin rooms error:', error);
       return ResponseView.internalServerError('Failed to get room information');
     }
   }
@@ -134,10 +135,10 @@ export class AdminRoutes {
    */
   private static async handleGetConnections(request: Request): Promise<Response> {
     try {
-      console.log('🔌 Admin: Getting connections');
+      logger.info('🔌 Admin: Getting connections');
       return await AdminController.getConnections(request);
     } catch (error) {
-      console.error('❌ Admin connections error:', error);
+      logger.error('❌ Admin connections error:', error);
       return ResponseView.internalServerError('Failed to get connection information');
     }
   }
@@ -147,10 +148,10 @@ export class AdminRoutes {
    */
   private static async handleTriggerCleanup(request: Request): Promise<Response> {
     try {
-      console.log('🧹 Admin: Triggering cleanup');
+      logger.info('🧹 Admin: Triggering cleanup');
       return await AdminController.triggerCleanup(request);
     } catch (error) {
-      console.error('❌ Admin cleanup error:', error);
+      logger.error('❌ Admin cleanup error:', error);
       return ResponseView.internalServerError('Failed to perform cleanup');
     }
   }
@@ -160,7 +161,7 @@ export class AdminRoutes {
    */
   private static async handleForceCloseRoom(request: Request, roomId: string): Promise<Response> {
     try {
-      console.log(`🔒 Admin: Force closing room ${roomId}`);
+      logger.info(`🔒 Admin: Force closing room ${roomId}`);
 
       if (!this.isValidRoomId(roomId)) {
         return ResponseView.badRequest('Invalid room ID format');
@@ -168,7 +169,7 @@ export class AdminRoutes {
 
       return await AdminController.forceCloseRoom(request, roomId);
     } catch (error) {
-      console.error(`❌ Admin force close room error for ${roomId}:`, error);
+      logger.error(`❌ Admin force close room error for ${roomId}:`, error);
       return ResponseView.internalServerError('Failed to close room');
     }
   }
@@ -178,7 +179,7 @@ export class AdminRoutes {
    */
   private static async handleForceDisconnect(request: Request, connectionId: string): Promise<Response> {
     try {
-      console.log(`🔌 Admin: Force disconnecting ${connectionId}`);
+      logger.info(`🔌 Admin: Force disconnecting ${connectionId}`);
 
       if (!this.isValidConnectionId(connectionId)) {
         return ResponseView.badRequest('Invalid connection ID format');
@@ -186,7 +187,7 @@ export class AdminRoutes {
 
       return await AdminController.forceDisconnect(request, connectionId);
     } catch (error) {
-      console.error(`❌ Admin force disconnect error for ${connectionId}:`, error);
+      logger.error(`❌ Admin force disconnect error for ${connectionId}:`, error);
       return ResponseView.internalServerError('Failed to disconnect connection');
     }
   }
@@ -196,10 +197,10 @@ export class AdminRoutes {
    */
   private static async handleClearAICache(request: Request): Promise<Response> {
     try {
-      console.log('🧠 Admin: Clearing AI cache');
+      logger.info('🧠 Admin: Clearing AI cache');
       return await AdminController.clearAICache(request);
     } catch (error) {
-      console.error('❌ Admin clear AI cache error:', error);
+      logger.error('❌ Admin clear AI cache error:', error);
       return ResponseView.internalServerError('Failed to clear AI cache');
     }
   }
@@ -209,10 +210,10 @@ export class AdminRoutes {
    */
   private static async handleGetAIPerformance(request: Request): Promise<Response> {
     try {
-      console.log('🧠 Admin: Getting AI performance');
+      logger.info('🧠 Admin: Getting AI performance');
       return await AdminController.getAIPerformance(request);
     } catch (error) {
-      console.error('❌ Admin AI performance error:', error);
+      logger.error('❌ Admin AI performance error:', error);
       return ResponseView.internalServerError('Failed to get AI performance metrics');
     }
   }
@@ -222,10 +223,10 @@ export class AdminRoutes {
    */
   private static async handleHealthCheck(request: Request): Promise<Response> {
     try {
-      console.log('🏥 Admin: Health check');
+      logger.info('🏥 Admin: Health check');
       return await AdminController.healthCheck(request);
     } catch (error) {
-      console.error('❌ Admin health check error:', error);
+      logger.error('❌ Admin health check error:', error);
       return ResponseView.internalServerError('Health check failed');
     }
   }

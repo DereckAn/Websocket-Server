@@ -2,6 +2,8 @@
 // RATE LIMITING MIDDLEWARE - Prevents abuse and ensures fair usage
 // =================================================================
 
+import { logger } from "@/utils/logger";
+
 /**
  * Rate Limiting for Gomoku server
  *
@@ -94,7 +96,7 @@ class RateLimitStore {
     }
 
     if (cleanedCount > 0) {
-      console.log(`🧹 Rate limit cleanup: removed ${cleanedCount} expired entries`);
+      logger.info(`🧹 Rate limit cleanup: removed ${cleanedCount} expired entries`);
     }
   }
 
@@ -157,7 +159,7 @@ export const rateLimitMiddleware = (request: Request): Response | null => {
   const config = RATE_LIMITS[limitType];
 
   if (!config) {
-    console.warn(`⚠️ No rate limit config for type: ${limitType}`);
+    logger.warn('No rate limit config for type', { limitType });
     return null; // Allow request if no config
   }
 
@@ -175,7 +177,7 @@ export const rateLimitMiddleware = (request: Request): Response | null => {
       firstRequest: now
     });
 
-    console.log(`🚦 Rate limit: First request from ${clientId} for ${limitType}`);
+    logger.info(`🚦 Rate limit: First request from ${clientId} for ${limitType}`);
     return null; // Allow request
   }
 
@@ -188,7 +190,7 @@ export const rateLimitMiddleware = (request: Request): Response | null => {
       firstRequest: now
     });
 
-    console.log(`🚦 Rate limit: Window reset for ${clientId} for ${limitType}`);
+    logger.info(`🚦 Rate limit: Window reset for ${clientId} for ${limitType}`);
     return null; // Allow request
   }
 
@@ -200,7 +202,12 @@ export const rateLimitMiddleware = (request: Request): Response | null => {
   if (entry.count > config.maxRequests) {
     const timeRemaining = Math.ceil((entry.resetTime - now) / 1000);
 
-    console.warn(`🚨 Rate limit exceeded: ${clientId} for ${limitType} (${entry.count}/${config.maxRequests})`);
+    logger.warn('Rate limit exceeded', {
+      clientId,
+      limitType,
+      count: entry.count,
+      maxRequests: config.maxRequests
+    });
 
     return new Response(JSON.stringify({
       success: false,
@@ -223,7 +230,7 @@ export const rateLimitMiddleware = (request: Request): Response | null => {
 
   // Request allowed - add rate limit headers
   const remaining = config.maxRequests - entry.count;
-  console.log(`🚦 Rate limit: ${clientId} for ${limitType} (${entry.count}/${config.maxRequests})`);
+  logger.info(`🚦 Rate limit: ${clientId} for ${limitType} (${entry.count}/${config.maxRequests})`);
 
   // We'll add headers in the response later
   // Store info for response headers
@@ -296,7 +303,7 @@ export const checkWebSocketRateLimit = (request: Request): boolean => {
   }
 
   if (entry.count >= config.maxRequests) {
-    console.warn(`🚨 WebSocket rate limit exceeded for ${clientId}`);
+    logger.warn(`🚨 WebSocket rate limit exceeded for ${clientId}`);
     return false;
   }
 

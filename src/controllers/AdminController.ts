@@ -5,6 +5,7 @@
 import GameService from '../services/GameService';
 import AIService from '../services/AIService';
 import WebSocketService from '../services/WebSocketService';
+import { logger } from '../utils/logger';
 
 /**
  * AdminController - Handles administrative and monitoring endpoints
@@ -27,7 +28,7 @@ export class AdminController {
    */
   static async getServerStats(request: Request): Promise<Response> {
     try {
-      console.log('📊 Admin stats request');
+      logger.info('Admin stats request');
 
       const gameStats = GameService.getServerStats();
       const aiStats = AIService.getStats();
@@ -52,7 +53,7 @@ export class AdminController {
       return this.successResponse(stats);
 
     } catch (error) {
-      console.error('❌ Error getting server stats:', error);
+      logger.error('Error getting server stats', error);
       return this.errorResponse('Failed to get server statistics', 500);
     }
   }
@@ -63,7 +64,7 @@ export class AdminController {
    */
   static async getRooms(request: Request): Promise<Response> {
     try {
-      console.log('🏠 Admin rooms request');
+      logger.info('Admin rooms request');
 
       const rooms = GameService.listActiveRooms();
       const roomDetails = [];
@@ -82,7 +83,7 @@ export class AdminController {
       });
 
     } catch (error) {
-      console.error('❌ Error getting rooms:', error);
+      logger.error('Error getting rooms', error);
       return this.errorResponse('Failed to get room information', 500);
     }
   }
@@ -93,7 +94,7 @@ export class AdminController {
    */
   static async getConnections(request: Request): Promise<Response> {
     try {
-      console.log('🔌 Admin connections request');
+      logger.info('Admin connections request');
 
       const connections = WebSocketService.listActiveConnections();
       const wsStats = WebSocketService.getServerStats();
@@ -104,7 +105,7 @@ export class AdminController {
       });
 
     } catch (error) {
-      console.error('❌ Error getting connections:', error);
+      logger.error('Error getting connections', error);
       return this.errorResponse('Failed to get connection information', 500);
     }
   }
@@ -119,7 +120,7 @@ export class AdminController {
    */
   static async triggerCleanup(request: Request): Promise<Response> {
     try {
-      console.log('🧹 Admin cleanup request');
+      logger.info('Admin cleanup request');
 
       const gameCleanupCount = GameService.cleanupInactiveGames();
       const wsCleanupCount = WebSocketService.cleanupStaleConnections();
@@ -139,11 +140,11 @@ export class AdminController {
         timestamp: new Date().toISOString()
       };
 
-      console.log('✅ Cleanup completed:', result);
+      logger.info('Cleanup completed', result);
       return this.successResponse(result);
 
     } catch (error) {
-      console.error('❌ Error during cleanup:', error);
+      logger.error('Error during cleanup', error);
       return this.errorResponse('Failed to perform cleanup', 500);
     }
   }
@@ -154,7 +155,7 @@ export class AdminController {
    */
   static async forceCloseRoom(request: Request, roomId: string): Promise<Response> {
     try {
-      console.log(`🔒 Admin force close room: ${roomId}`);
+      logger.info('Admin force close room', { roomId });
 
       const success = GameService.forceCloseGame(roomId);
 
@@ -169,7 +170,7 @@ export class AdminController {
       }
 
     } catch (error) {
-      console.error(`❌ Error closing room ${roomId}:`, error);
+      logger.error('Error closing room', error, { roomId });
       return this.errorResponse('Failed to close room', 500);
     }
   }
@@ -180,7 +181,7 @@ export class AdminController {
    */
   static async forceDisconnect(request: Request, connectionId: string): Promise<Response> {
     try {
-      console.log(`🔌 Admin force disconnect: ${connectionId}`);
+      logger.info('Admin force disconnect', { connectionId });
 
       const success = WebSocketService.forceDisconnect(connectionId);
 
@@ -195,7 +196,7 @@ export class AdminController {
       }
 
     } catch (error) {
-      console.error(`❌ Error disconnecting ${connectionId}:`, error);
+      logger.error('Error disconnecting connection', error, { connectionId });
       return this.errorResponse('Failed to disconnect connection', 500);
     }
   }
@@ -210,7 +211,7 @@ export class AdminController {
    */
   static async clearAICache(request: Request): Promise<Response> {
     try {
-      console.log('🧠 Admin clear AI cache request');
+      logger.info('Admin clear AI cache request');
 
       const statsBefore = AIService.getStats();
       AIService.clearCache();
@@ -224,7 +225,7 @@ export class AdminController {
       });
 
     } catch (error) {
-      console.error('❌ Error clearing AI cache:', error);
+      logger.error('Error clearing AI cache', error);
       return this.errorResponse('Failed to clear AI cache', 500);
     }
   }
@@ -235,7 +236,7 @@ export class AdminController {
    */
   static async getAIPerformance(request: Request): Promise<Response> {
     try {
-      console.log('🧠 Admin AI performance request');
+      logger.info('Admin AI performance request');
 
       const aiStats = AIService.getStats();
 
@@ -249,7 +250,7 @@ export class AdminController {
       return this.successResponse(performance);
 
     } catch (error) {
-      console.error('❌ Error getting AI performance:', error);
+      logger.error('Error getting AI performance', error);
       return this.errorResponse('Failed to get AI performance metrics', 500);
     }
   }
@@ -296,7 +297,7 @@ export class AdminController {
       return this.responseWithStatus(health, statusCode);
 
     } catch (error) {
-      console.error('❌ Error in health check:', error);
+      logger.error('Error in health check', error);
 
       return this.responseWithStatus({
         status: 'unhealthy',

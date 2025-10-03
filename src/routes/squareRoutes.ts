@@ -1,4 +1,5 @@
 // =================================================================
+import { logger } from '../utils/logger';
 // SQUARE ROUTES - Route handlers for Square webhook integration
 // =================================================================
 
@@ -72,7 +73,7 @@ export class SquareRoutes {
       }
 
     } catch (error) {
-      console.error('❌ Error in Square routes:', error);
+      logger.error('❌ Error in Square routes:', error);
       return ResponseView.internalServerError('Square route handling failed');
     }
   }
@@ -110,7 +111,7 @@ export class SquareRoutes {
    */
   private static async handleSquareWebhook(request: Request): Promise<Response> {
     try {
-      console.log('📥 Handling Square webhook request');
+      logger.info('📥 Handling Square webhook request');
 
       // Apply rate limiting for webhooks
       const rateLimitResult = rateLimitMiddleware(request);
@@ -121,7 +122,7 @@ export class SquareRoutes {
       return await SquareController.handleWebhook(request);
 
     } catch (error) {
-      console.error('❌ Square webhook route error:', error);
+      logger.error('❌ Square webhook route error:', error);
       return ResponseView.internalServerError('Failed to process Square webhook');
     }
   }
@@ -131,7 +132,7 @@ export class SquareRoutes {
    */
   private static async handleOrderLookup(request: Request, orderId: string): Promise<Response> {
     try {
-      console.log(`🔍 Handling order lookup: ${orderId}`);
+      logger.info(`🔍 Handling order lookup: ${orderId}`);
 
       // Validate order ID
       if (!orderId || orderId.length === 0) {
@@ -147,7 +148,7 @@ export class SquareRoutes {
       return await SquareController.handleOrderLookup(request, orderId);
 
     } catch (error) {
-      console.error(`❌ Order lookup route error for ${orderId}:`, error);
+      logger.error(`❌ Order lookup route error for ${orderId}:`, error);
       return ResponseView.internalServerError('Failed to lookup order');
     }
   }
@@ -157,7 +158,7 @@ export class SquareRoutes {
    */
   private static async handleTestEvent(request: Request): Promise<Response> {
     try {
-      console.log('🧪 Handling test event request');
+      logger.info('🧪 Handling test event request');
 
       // Apply rate limiting
       const rateLimitResult = rateLimitMiddleware(request);
@@ -168,7 +169,7 @@ export class SquareRoutes {
       return await SquareController.handleTestEvent(request);
 
     } catch (error) {
-      console.error('❌ Test event route error:', error);
+      logger.error('❌ Test event route error:', error);
       return ResponseView.internalServerError('Failed to process test event');
     }
   }
@@ -178,11 +179,11 @@ export class SquareRoutes {
    */
   private static handleSquareHealth(request: Request): Response {
     try {
-      console.log('🏥 Square health check requested');
+      logger.info('🏥 Square health check requested');
       return SquareController.handleSquareHealth(request);
 
     } catch (error) {
-      console.error('❌ Square health route error:', error);
+      logger.error('❌ Square health route error:', error);
       return ResponseView.internalServerError('Square health check failed');
     }
   }
@@ -192,7 +193,7 @@ export class SquareRoutes {
    */
   private static handleSquareStats(request: Request): Response {
     try {
-      console.log('📊 Square stats requested');
+      logger.info('📊 Square stats requested');
 
       // Apply rate limiting for stats endpoint
       const rateLimitResult = rateLimitMiddleware(request);
@@ -203,7 +204,7 @@ export class SquareRoutes {
       return SquareController.handleSquareStats(request);
 
     } catch (error) {
-      console.error('❌ Square stats route error:', error);
+      logger.error('❌ Square stats route error:', error);
       return ResponseView.internalServerError('Failed to get Square statistics');
     }
   }
@@ -213,7 +214,7 @@ export class SquareRoutes {
    */
   private static handleSquareConnections(request: Request): Response {
     try {
-      console.log('🔌 Square connections requested');
+      logger.info('🔌 Square connections requested');
 
       // Apply rate limiting
       const rateLimitResult = rateLimitMiddleware(request);
@@ -224,7 +225,7 @@ export class SquareRoutes {
       return SquareController.handleSquareConnections(request);
 
     } catch (error) {
-      console.error('❌ Square connections route error:', error);
+      logger.error('❌ Square connections route error:', error);
       return ResponseView.internalServerError('Failed to get connection statistics');
     }
   }
@@ -234,7 +235,7 @@ export class SquareRoutes {
    */
   private static handleSquareCleanup(request: Request): Response {
     try {
-      console.log('🧹 Square cleanup requested');
+      logger.info('🧹 Square cleanup requested');
 
       // Apply stricter rate limiting for cleanup
       const rateLimitResult = rateLimitMiddleware(request);
@@ -245,7 +246,7 @@ export class SquareRoutes {
       return SquareController.handleSquareCleanup(request);
 
     } catch (error) {
-      console.error('❌ Square cleanup route error:', error);
+      logger.error('❌ Square cleanup route error:', error);
       return ResponseView.internalServerError('Failed to perform cleanup');
     }
   }

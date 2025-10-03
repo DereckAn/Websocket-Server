@@ -1,4 +1,5 @@
 // =================================================================
+import { logger } from '../utils/logger';
 // ROUTES INDEX - Central route dispatcher
 // =================================================================
 
@@ -31,7 +32,7 @@ export class Routes {
     const method = request.method;
 
     // Log incoming request
-    console.log(`📥 ${method} ${path} - ${this.getClientIP(request)}`);
+    logger.info(`📥 ${method} ${path} - ${this.getClientIP(request)}`);
 
     try {
       let response: Response | null = null;
@@ -79,12 +80,12 @@ export class Routes {
 
       // Log response
       const duration = Date.now() - startTime;
-      console.log(`📤 ${method} ${path} - ${response.status} (${duration}ms)`);
+      logger.info(`📤 ${method} ${path} - ${response.status} (${duration}ms)`);
 
       return response;
     } catch (error) {
       const duration = Date.now() - startTime;
-      console.error(`❌ ${method} ${path} - Error (${duration}ms):`, error);
+      logger.error(`❌ ${method} ${path} - Error (${duration}ms):`, error);
 
       const errorResponse = ResponseView.internalServerError(
         "An unexpected error occurred"
@@ -105,7 +106,7 @@ export class Routes {
     const url = new URL(request.url);
     const path = url.pathname;
 
-    console.log(`🔌 WebSocket upgrade request: ${path}`);
+    logger.info(`🔌 WebSocket upgrade request: ${path}`);
 
     try {
       // Try Gomoku WebSocket routes
@@ -119,10 +120,10 @@ export class Routes {
       }
 
       // WebSocket route not found
-      console.warn(`⚠️ Unknown WebSocket route: ${path}`);
+      logger.warn(`⚠️ Unknown WebSocket route: ${path}`);
       return new Response("WebSocket route not found", { status: 404 });
     } catch (error) {
-      console.error("❌ WebSocket upgrade error:", error);
+      logger.error("❌ WebSocket upgrade error:", error);
       return new Response("WebSocket upgrade failed", { status: 500 });
     }
   }

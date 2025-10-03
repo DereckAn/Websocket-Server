@@ -14,6 +14,7 @@ import {
 import GameService from '../services/GameService';
 import WebSocketService from '../services/WebSocketService';
 import RoomModel from '../models/RoomModel';
+import { logger } from '../utils/logger';
 
 /**
  * GomokuController - Handles all Gomoku-related HTTP and WebSocket requests
@@ -37,7 +38,7 @@ export class GomokuController {
    */
   static async quickStart(request: Request): Promise<Response> {
     try {
-      console.log('🎮 Quick start request received');
+      logger.game('Quick start request received');
 
       // Parse request body
       let requestData: QuickStartRequest = {};
@@ -48,7 +49,7 @@ export class GomokuController {
           requestData = JSON.parse(body);
         }
       } catch (parseError) {
-        console.error('❌ Invalid JSON in quick start request:', parseError);
+        logger.error('Invalid JSON in quick start request', parseError);
         return this.errorResponse('Invalid JSON format', 400);
       }
 
@@ -67,13 +68,13 @@ export class GomokuController {
         connectionId
       );
 
-      console.log(`✅ Quick start game created: ${gameResult.gameId}`);
+      logger.game('Quick start game created', undefined, { gameId: gameResult.gameId });
 
       // Return success response
       return this.successResponse(gameResult);
 
     } catch (error) {
-      console.error('❌ Error in quick start:', error);
+      logger.error('Error in quick start', error);
       return this.errorResponse('Failed to create game', 500);
     }
   }
@@ -84,7 +85,7 @@ export class GomokuController {
    */
   static async makeMove(request: Request, gameId: string): Promise<Response> {
     try {
-      console.log(`🎯 Move request for game ${gameId}`);
+      logger.game('Move request', undefined, { gameId });
 
       // Parse request body
       let moveData: any;
@@ -109,20 +110,20 @@ export class GomokuController {
       });
 
       if (moveResult.success) {
-        console.log(`✅ Move processed for game ${gameId}`);
+        logger.game('Move processed', undefined, { gameId });
 
         // Broadcast move update via WebSocket
-        console.log(`🔌 🚀 About to broadcast move update...`);
+        logger.debug('About to broadcast move update');
         this.broadcastMoveUpdate(moveResult);
 
         return this.successResponse(moveResult);
       } else {
-        console.log(`❌ Invalid move for game ${gameId}: ${moveResult.error}`);
+        logger.warn('Invalid move', { gameId, error: moveResult.error });
         return this.errorResponse(moveResult.error!, 422);
       }
 
     } catch (error) {
-      console.error(`❌ Error processing move for game ${gameId}:`, error);
+      logger.error('Error processing move', error, { gameId });
       return this.errorResponse('Failed to process move', 500);
     }
   }
@@ -133,7 +134,7 @@ export class GomokuController {
    */
   static async getGameState(request: Request, gameId: string): Promise<Response> {
     try {
-      console.log(`📊 Game state request for ${gameId}`);
+      logger.game('Game state request', undefined, { gameId });
 
       // Extract player ID from query params
       const url = new URL(request.url);
@@ -150,15 +151,15 @@ export class GomokuController {
       });
 
       if (gameState) {
-        console.log(`✅ Game state retrieved for ${gameId}`);
+        logger.game('Game state retrieved', undefined, { gameId });
         return this.successResponse({ gameState });
       } else {
-        console.log(`❌ Game not found: ${gameId}`);
+        logger.warn('Game not found', { gameId });
         return this.errorResponse('Game not found', 404);
       }
 
     } catch (error) {
-      console.error(`❌ Error getting game state for ${gameId}:`, error);
+      logger.error('Error getting game state', error, { gameId });
       return this.errorResponse('Failed to get game state', 500);
     }
   }
@@ -169,7 +170,7 @@ export class GomokuController {
    */
   static async endGame(request: Request, gameId: string): Promise<Response> {
     try {
-      console.log(`🔚 End game request for ${gameId}`);
+      logger.game('End game request', undefined, { gameId });
 
       // Parse request body for player ID
       let requestData: any;
@@ -187,11 +188,11 @@ export class GomokuController {
       // Handle player disconnect
       GameService.handlePlayerDisconnect(requestData.playerId);
 
-      console.log(`✅ Game ended for player ${requestData.playerId}`);
+      logger.game('Game ended for player', undefined, { playerId: requestData.playerId });
       return this.successResponse({ message: 'Game ended successfully' });
 
     } catch (error) {
-      console.error(`❌ Error ending game ${gameId}:`, error);
+      logger.error('Error ending game', error, { gameId });
       return this.errorResponse('Failed to end game', 500);
     }
   }
@@ -202,7 +203,7 @@ export class GomokuController {
    */
   static async resetGame(request: Request, gameId: string): Promise<Response> {
     try {
-      console.log(`🔄 Reset game request for ${gameId}`);
+      logger.game('Reset game request', undefined, { gameId });
 
       // Extract room ID from gameId (game_ABC123 -> ABC123)
       const roomId = gameId.replace('game_', '');
@@ -229,7 +230,12 @@ export class GomokuController {
         timestamp: new Date()
       });
 
-      console.log(`✅ Game reset in room ${roomId}. Win stats: H:${room.winStats?.humanWins} AI:${room.winStats?.aiWins}`);
+      logger.game('Game reset in room', roomId, {
+        winStats: {
+          humanWins: room.winStats?.humanWins,
+          aiWins: room.winStats?.aiWins
+        }
+      });
 
       return this.successResponse({
         message: 'Game reset successfully',
@@ -238,7 +244,7 @@ export class GomokuController {
       });
 
     } catch (error) {
-      console.error(`❌ Error resetting game ${gameId}:`, error);
+      logger.error('Error resetting game', error, { gameId });
       return this.errorResponse('Failed to reset game', 500);
     }
   }
@@ -257,7 +263,7 @@ export class GomokuController {
     roomId: string
   ): Response | undefined {
     try {
-      console.log(`🔌 WebSocket upgrade request for room ${roomId}`);
+      logger.ws('WebSocket upgrade request', undefined, { roomId });
 
       // Extract connection parameters
       const url = new URL(request.url);
@@ -265,14 +271,14 @@ export class GomokuController {
       const gameId = url.searchParams.get('gameId');
 
       if (!playerId || !gameId) {
-        console.error('❌ Missing playerId or gameId in WebSocket request');
+        logger.error('Missing playerId or gameId in WebSocket request');
         return new Response('Missing required parameters', { status: 400 });
       }
 
       // Validate that the room exists
       const room = GameService.getRoom(roomId);
       if (!room) {
-        console.error(`❌ Room not found: ${roomId}`);
+        logger.error('Room not found for WebSocket', { roomId });
         return new Response('Room not found', { status: 404 });
       }
 
@@ -287,15 +293,15 @@ export class GomokuController {
       });
 
       if (upgraded) {
-        console.log(`✅ WebSocket upgraded for player ${playerId} in room ${roomId}`);
+        logger.ws('WebSocket upgraded', undefined, { playerId, roomId });
         return undefined; // Successful upgrade
       } else {
-        console.error(`❌ WebSocket upgrade failed for room ${roomId}`);
+        logger.error('WebSocket upgrade failed', { roomId });
         return new Response('WebSocket upgrade failed', { status: 400 });
       }
 
     } catch (error) {
-      console.error('❌ Error in WebSocket upgrade:', error);
+      logger.error('Error in WebSocket upgrade', error);
       return new Response('Internal server error', { status: 500 });
     }
   }
@@ -307,7 +313,7 @@ export class GomokuController {
     try {
       const { roomId, playerId, gameId } = ws.data;
 
-      console.log(`🔌 WebSocket connected: Player ${playerId} in room ${roomId}`);
+      logger.ws('WebSocket connected', undefined, { playerId, roomId });
 
       // Register connection with WebSocketService
       const connectionId = WebSocketService.handleConnection(
@@ -324,7 +330,7 @@ export class GomokuController {
       ws.data.connectionId = connectionId;
 
     } catch (error) {
-      console.error('❌ Error in WebSocket open:', error);
+      logger.error('Error in WebSocket open', error);
       ws.close();
     }
   }
@@ -336,7 +342,7 @@ export class GomokuController {
     try {
       const { playerId, connectionId } = ws.data;
 
-      console.log(`🔌 WebSocket disconnected: Player ${playerId}`);
+      logger.ws('WebSocket disconnected', undefined, { playerId });
 
       // Handle disconnection
       if (connectionId) {
@@ -344,7 +350,7 @@ export class GomokuController {
       }
 
     } catch (error) {
-      console.error('❌ Error in WebSocket close:', error);
+      logger.error('Error in WebSocket close', error);
     }
   }
 
@@ -360,7 +366,7 @@ export class GomokuController {
       try {
         parsedMessage = JSON.parse(message);
       } catch (parseError) {
-        console.error('❌ Invalid WebSocket message format:', parseError);
+        logger.error('Invalid WebSocket message format', parseError);
         ws.send(JSON.stringify({
           type: 'error',
           data: { error: 'Invalid message format' },
@@ -369,14 +375,17 @@ export class GomokuController {
         return;
       }
 
-      console.log(`📨 WebSocket message from ${playerId}:`, parsedMessage.type);
+      logger.ws('WebSocket message received', undefined, {
+        playerId,
+        messageType: parsedMessage.type
+      });
 
       // Forward to WebSocketService for processing
       // The service will handle the actual message processing
       // This keeps the controller focused on just handling the WebSocket protocol
 
     } catch (error) {
-      console.error('❌ Error processing WebSocket message:', error);
+      logger.error('Error processing WebSocket message', error);
       ws.send(JSON.stringify({
         type: 'error',
         data: { error: 'Failed to process message' },
@@ -499,17 +508,17 @@ export class GomokuController {
       const { default: WebSocketService } = await import('../services/WebSocketService');
 
       if (!moveResult.gameState || !moveResult.move) {
-        console.log('🔌 ⚠️ Cannot broadcast: missing gameState or move');
+        logger.warn('Cannot broadcast: missing gameState or move');
         return;
       }
 
       // Extract room ID from gameId (game_ABC123 -> ABC123)
       const roomId = moveResult.gameState.id.replace('game_', '');
-      console.log(`🔌 📡 Broadcasting move update for room ${roomId}`);
+      logger.ws('Broadcasting move update', undefined, { roomId });
 
       const room = await GameService.getRoom(roomId);
       if (!room) {
-        console.log(`🔌 ⚠️ Cannot broadcast: room ${roomId} not found`);
+        logger.warn('Cannot broadcast: room not found', { roomId });
         return;
       }
 
@@ -562,15 +571,18 @@ export class GomokuController {
             let statsResult = { specialMessage: undefined as string | undefined, achievedMilestone: false };
 
             if (room.gameType === 'human-vs-ai') {
-              console.log('📊 Game ended, updating win stats...');
+              logger.game('Game ended, updating win stats', roomId);
               // Find human and AI players
               const aiPlayer = room.game.players.find(p => p.type === 'ai');
               const humanPlayer = room.game.players.find(p => p.type === 'human');
 
               if (humanPlayer && aiPlayer) {
-                console.log('👥 Found players - Human:', humanPlayer.symbol, 'AI:', aiPlayer.symbol);
-                console.log('🏆 Winner:', moveResult.gameState.winner);
-                console.log('📊 Win stats BEFORE update:', JSON.stringify(room.winStats));
+                logger.debug('Found players', {
+                  humanSymbol: humanPlayer.symbol,
+                  aiSymbol: aiPlayer.symbol,
+                  winner: moveResult.gameState.winner,
+                  winStatsBefore: room.winStats
+                });
 
                 statsResult = RoomModel.updateWinStats(
                   room,
@@ -578,15 +590,17 @@ export class GomokuController {
                   humanPlayer.symbol
                 );
 
-                console.log('📊 Win stats AFTER update:', JSON.stringify(room.winStats));
-                console.log('✨ Special message:', statsResult.specialMessage);
+                logger.debug('Win stats updated', {
+                  winStatsAfter: room.winStats,
+                  specialMessage: statsResult.specialMessage
+                });
               } else {
-                console.log('❌ Could not find human or AI player');
+                logger.warn('Could not find human or AI player');
               }
             }
 
             setTimeout(() => {
-              console.log('📤 Broadcasting game_over with winStats:', JSON.stringify(room.winStats));
+              logger.ws('Broadcasting game_over', undefined, { roomId, winStats: room.winStats });
               WebSocketService.broadcastToRoom(room.id, {
                 type: 'game_over',
                 gameId: moveResult.gameState.id,
@@ -609,19 +623,22 @@ export class GomokuController {
 
       // Check if game ended (for non-AI games or when human wins in AI game)
       if (!moveResult.aiMove && (moveResult.gameState.status === 'won' || moveResult.gameState.status === 'draw')) {
-        console.log('📤 Broadcasting game_over (human move ended game)');
+        logger.ws('Broadcasting game_over (human move ended game)', undefined, { roomId });
 
         // Update win stats for AI games BEFORE sending the message
         let statsResult = { specialMessage: undefined as string | undefined, achievedMilestone: false };
         if (room.gameType === 'human-vs-ai') {
-          console.log('📊 Updating win stats for human win...');
+          logger.game('Updating win stats for human win', roomId);
           const aiPlayer = room.game.players.find(p => p.type === 'ai');
           const humanPlayer = room.game.players.find(p => p.type === 'human');
 
           if (humanPlayer && aiPlayer) {
-            console.log('👥 Found players - Human:', humanPlayer.symbol, 'AI:', aiPlayer.symbol);
-            console.log('🏆 Winner:', moveResult.gameState.winner);
-            console.log('📊 Win stats BEFORE update:', JSON.stringify(room.winStats));
+            logger.debug('Found players', {
+              humanSymbol: humanPlayer.symbol,
+              aiSymbol: aiPlayer.symbol,
+              winner: moveResult.gameState.winner,
+              winStatsBefore: room.winStats
+            });
 
             statsResult = RoomModel.updateWinStats(
               room,
@@ -629,8 +646,10 @@ export class GomokuController {
               humanPlayer.symbol
             );
 
-            console.log('📊 Win stats AFTER update:', JSON.stringify(room.winStats));
-            console.log('✨ Special message:', statsResult.specialMessage);
+            logger.debug('Win stats updated', {
+              winStatsAfter: room.winStats,
+              specialMessage: statsResult.specialMessage
+            });
           }
         }
 
@@ -649,7 +668,7 @@ export class GomokuController {
             messageData.winStats = room.winStats;
             messageData.specialMessage = statsResult.specialMessage;
             messageData.achievedMilestone = statsResult.achievedMilestone;
-            console.log('📊 Including winStats in game_over:', JSON.stringify(room.winStats));
+            logger.debug('Including winStats in game_over', { winStats: room.winStats });
           }
 
           WebSocketService.broadcastToRoom(room.id, {
@@ -662,7 +681,7 @@ export class GomokuController {
       }
 
     } catch (error) {
-      console.error('❌ Error broadcasting move update:', error);
+      logger.error('Error broadcasting move update', error);
     }
   }
 

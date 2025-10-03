@@ -9,6 +9,7 @@ import {
   type AIMove,
   GAME_CONFIG
 } from '../types/gomoku';
+import { logger } from '../utils/logger';
 
 /**
  * WebSocketService - Manages real-time communication for games
@@ -82,7 +83,7 @@ export class WebSocketService {
       timestamp: new Date()
     });
 
-    console.log(`🔌 WebSocket connected: Player ${playerId} in room ${roomId} (${connectionId})`);
+    logger.ws('WebSocket connected', connectionId, { playerId, roomId });
 
     return connectionId;
   }
@@ -125,7 +126,10 @@ export class WebSocketService {
       timestamp: new Date()
     }, connectionId); // Exclude the disconnected player
 
-    console.log(`🔌 WebSocket disconnected: Player ${connection.playerId} from room ${connection.roomId}`);
+    logger.ws('WebSocket disconnected', connectionId, {
+      playerId: connection.playerId,
+      roomId: connection.roomId
+    });
   }
 
   // =================================================================
@@ -156,7 +160,7 @@ export class WebSocketService {
         break;
 
       default:
-        console.warn(`❓ Unknown message type: ${message.type}`);
+        logger.warn('Unknown message type', { messageType: message.type, connectionId });
         this.sendError(connectionId, 'Unknown message type');
     }
   }
@@ -267,7 +271,7 @@ export class WebSocketService {
       }
 
     } catch (error) {
-      console.error('❌ Error processing move:', error);
+      logger.error('Error processing move', error, { connectionId });
       this.sendError(connectionId, 'Failed to process move');
     }
   }
@@ -299,7 +303,7 @@ export class WebSocketService {
       }
 
     } catch (error) {
-      console.error('❌ Error getting game state:', error);
+      logger.error('Error getting game state', error, { connectionId });
       this.sendError(connectionId, 'Failed to get game state');
     }
   }
@@ -314,17 +318,24 @@ export class WebSocketService {
   static sendToConnection(connectionId: string, message: WSMessage): boolean {
     const connection = this.connections.get(connectionId);
     if (!connection) {
-      console.log(`🔌 ❌ Connection ${connectionId} not found for message:`, message.type);
+      logger.debug('Connection not found for message', {
+        connectionId,
+        messageType: message.type
+      });
       return false;
     }
 
     try {
       const messageStr = JSON.stringify(message);
-      console.log(`🔌 📤 Sending to ${connectionId}:`, message.type, message.data ? `(${Object.keys(message.data).join(', ')})` : '');
+      logger.debug('Sending message to connection', {
+        connectionId,
+        messageType: message.type,
+        dataKeys: message.data ? Object.keys(message.data) : []
+      });
       connection.ws.send(messageStr);
       return true;
     } catch (error) {
-      console.error(`❌ Failed to send message to ${connectionId}:`, error);
+      logger.error('Failed to send message to connection', error, { connectionId });
       this.handleDisconnection(connectionId);
       return false;
     }
@@ -383,7 +394,7 @@ export class WebSocketService {
       // Check if connection is still alive
       const timeSinceLastPing = Date.now() - connection.lastPing.getTime();
       if (timeSinceLastPing > GAME_CONFIG.WEBSOCKET_PING_INTERVAL * 4) {
-        console.log(`💔 Connection ${connectionId} timed out`);
+        logger.warn('Connection timed out', { connectionId });
         this.handleDisconnection(connectionId);
         clearInterval(interval);
         return;
@@ -393,7 +404,7 @@ export class WebSocketService {
       try {
         ws.ping();
       } catch (error) {
-        console.error(`❌ Ping failed for ${connectionId}:`, error);
+        logger.error('Ping failed for connection', error, { connectionId });
         this.handleDisconnection(connectionId);
         clearInterval(interval);
       }
@@ -412,7 +423,7 @@ export class WebSocketService {
       const timeSinceLastPing = now - connection.lastPing.getTime();
 
       if (timeSinceLastPing > GAME_CONFIG.WEBSOCKET_PING_INTERVAL * 5) {
-        console.log(`🧹 Cleaning up stale connection: ${connectionId}`);
+        logger.debug('Cleaning up stale connection', { connectionId });
         this.handleDisconnection(connectionId);
         cleanedCount++;
       }
@@ -495,10 +506,10 @@ export class WebSocketService {
     try {
       connection.ws.close();
       this.handleDisconnection(connectionId);
-      console.log(`🔒 Force disconnected: ${connectionId}`);
+      logger.warn('Force disconnected connection', { connectionId });
       return true;
     } catch (error) {
-      console.error(`❌ Failed to force disconnect ${connectionId}:`, error);
+      logger.error('Failed to force disconnect connection', error, { connectionId });
       return false;
     }
   }

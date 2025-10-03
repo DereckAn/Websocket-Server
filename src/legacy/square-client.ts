@@ -2,11 +2,13 @@ import crypto from "crypto";
 import { SquareClient } from "square";
 import type { SquareOrder, SquareWebhookEvent } from "./types";
 import { formatOrderForDisplay, handleBigIntSerialization, log } from "./utils";
+import { logger } from "@/utils/logger";
 
 // Initialize Square client
 const token = process.env.SQUARE_ACCESS_TOKEN;
 
-console.log("Square Client Configuration:", {
+
+logger.info("Square Client Configuration", {
   environment: process.env.SQUARE_ENVIRONMENT,
   tokenPresent: !!token,
   tokenLength: token ? token.length : 0,
@@ -27,7 +29,7 @@ export function verifySquareWebhookSignature(
   webhookUrl: string
 ): boolean {
   if (!process.env.SQUARE_WEBHOOK_SIGNATURE_KEY) {
-    log("error", "SQUARE_WEBHOOK_SIGNATURE_KEY not configured");
+    logger.error("SQUARE_WEBHOOK_SIGNATURE_KEY not configured");
     return false;
   }
 
@@ -41,15 +43,16 @@ export function verifySquareWebhookSignature(
     const expectedSignature = hmac.digest("base64");
 
     const isValid = expectedSignature === signature;
-    log("debug", `Signature verification: ${isValid ? "VALID" : "INVALID"}`, {
-      expected: expectedSignature,
-      received: signature,
-      stringToSign: stringToSign.substring(0, 100) + "...",
-    });
+    if (!isValid) {
+      logger.warn("Invalid Square webhook signature", {
+        expected: expectedSignature,
+        received: signature,
+      });
+    }
 
     return isValid;
   } catch (error) {
-    log("error", "Error verifying webhook signature:", error);
+    logger.error("Error verifying Square webhook signature", error);
     return false;
   }
 }

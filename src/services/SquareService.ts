@@ -1,4 +1,5 @@
 // =================================================================
+import { logger } from '../utils/logger';
 // SQUARE SERVICE - Business logic for Square webhook processing
 // =================================================================
 
@@ -46,7 +47,7 @@ export class SquareService {
     const token = process.env.SQUARE_ACCESS_TOKEN;
 
     if (!token) {
-      console.warn('⚠️ SQUARE_ACCESS_TOKEN not configured - Square integration disabled');
+      logger.warn('⚠️ SQUARE_ACCESS_TOKEN not configured - Square integration disabled');
       return;
     }
 
@@ -55,7 +56,7 @@ export class SquareService {
       environment: process.env.SQUARE_ENVIRONMENT === 'production' ? 'Production' : 'Sandbox'
     });
 
-    console.log('✅ Square client initialized:', {
+    logger.info('✅ Square client initialized:', {
       environment: process.env.SQUARE_ENVIRONMENT || 'sandbox',
       tokenPresent: !!token,
       tokenLength: token.length
@@ -153,7 +154,7 @@ export class SquareService {
    */
   static async processWebhookEvent(event: SquareWebhookEvent): Promise<OrderProcessingResult> {
     try {
-      console.log(`📥 Processing webhook event: ${event.type} for ${event.data?.id}`);
+      logger.info(`📥 Processing webhook event: ${event.type} for ${event.data?.id}`);
 
       // Handle test events
       if (event.type === 'test') {
@@ -194,7 +195,7 @@ export class SquareService {
       this.stats.ordersProcessed++;
       this.stats.lastOrderAt = new Date().toISOString();
 
-      console.log(`✅ Order processed: ${formattedOrder.id} (${formattedOrder.state})`);
+      logger.info(`✅ Order processed: ${formattedOrder.id} (${formattedOrder.state})`);
 
       return {
         success: true,
@@ -205,7 +206,7 @@ export class SquareService {
 
     } catch (error) {
       this.stats.errors.processingErrors++;
-      console.error(`❌ Error processing webhook event:`, error);
+      logger.error(`❌ Error processing webhook event:`, error);
 
       return {
         success: false,
@@ -229,15 +230,15 @@ export class SquareService {
     }
 
     try {
-      console.log(`🔍 Fetching order from Square API: ${orderId}`);
+      logger.info(`🔍 Fetching order from Square API: ${orderId}`);
 
       // TODO: Fix Square API call - temporary mock for compilation
       // const { result } = await this.squareClient.orders.retrieveOrder(orderId);
-      console.warn('⚠️ Square API call temporarily disabled for compilation');
+      logger.warn('⚠️ Square API call temporarily disabled for compilation');
       return null;
 
     } catch (error) {
-      console.error(`❌ Error retrieving order ${orderId}:`, error);
+      logger.error(`❌ Error retrieving order ${orderId}:`, error);
       throw new Error(`Failed to retrieve order: ${error}`);
     }
   }
@@ -287,7 +288,7 @@ export class SquareService {
       }
     };
 
-    console.log('📊 Square service statistics reset');
+    logger.info('📊 Square service statistics reset');
   }
 
   /**
@@ -328,7 +329,7 @@ export class SquareService {
     message: string;
     data: any;
   } {
-    console.log('🧪 Processing test event from admin panel');
+    logger.info('🧪 Processing test event from admin panel');
 
     return {
       success: true,

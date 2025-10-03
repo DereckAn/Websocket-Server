@@ -18,6 +18,7 @@ import {
 import GameModel from '../models/GameModel';
 import PlayerModel from '../models/PlayerModel';
 import RoomModel from '../models/RoomModel';
+import { logger } from '../utils/logger';
 
 /**
  * GameService - Central orchestrator for all game operations
@@ -76,7 +77,10 @@ export class GameService {
       // Build WebSocket endpoint
       const wsEndpoint = `ws://localhost:${process.env.WEBHOOK_PORT || 3000}/ws/gomoku/${room.id}`;
 
-      console.log(`🎮 Quick start game created: Room ${room.id}, Human: ${humanPlayer.symbol}, AI: ${aiPlayer.symbol}`);
+      logger.game('Quick start game created', room.id, {
+        humanSymbol: humanPlayer.symbol,
+        aiSymbol: aiPlayer.symbol
+      });
 
       return {
         success: true,
@@ -90,7 +94,7 @@ export class GameService {
       };
 
     } catch (error) {
-      console.error('❌ Error creating quick start game:', error);
+      logger.error('Error creating quick start game', error);
       throw new Error('Failed to create game');
     }
   }
@@ -155,11 +159,17 @@ export class GameService {
       const updatedRoom = RoomModel.updateGameState(room, moveResult.newGameState);
       this.activeRooms.set(roomId, updatedRoom);
 
-      console.log(`🎯 Move made: ${player.symbol} at (${request.row}, ${request.col}) in room ${roomId}`);
+      logger.game('Move made', roomId, {
+        playerSymbol: player.symbol,
+        row: request.row,
+        col: request.col
+      });
 
       // Check if game ended
       if (moveResult.newGameState.status === 'won' || moveResult.newGameState.status === 'draw') {
-        console.log(`🏁 Game ended in room ${roomId}: ${moveResult.newGameState.status}`);
+        logger.game('Game ended', roomId, {
+          status: moveResult.newGameState.status
+        });
 
         return {
           success: true,
@@ -170,7 +180,7 @@ export class GameService {
 
       // If it's a Human vs AI game and AI's turn, calculate AI move
       if (room.gameType === 'human-vs-ai' && moveResult.newGameState.currentPlayer !== player.symbol) {
-        console.log(`🤖 AI is thinking in room ${roomId}...`);
+        logger.ai('AI thinking in room', { roomId });
 
         // Import AIService dynamically to avoid circular dependency
         const { AIService } = await import('./AIService');
@@ -189,7 +199,12 @@ export class GameService {
           const finalRoom = RoomModel.updateGameState(updatedRoom, aiMoveResult.newGameState);
           this.activeRooms.set(roomId, finalRoom);
 
-          console.log(`🤖 AI moved: ${aiMoveResult.move.player} at (${aiMove.row}, ${aiMove.col})`);
+          logger.ai('AI moved', {
+            playerSymbol: aiMoveResult.move.player,
+            row: aiMove.row,
+            col: aiMove.col,
+            roomId
+          });
 
           return {
             success: true,
@@ -215,7 +230,7 @@ export class GameService {
       };
 
     } catch (error) {
-      console.error('❌ Error making move:', error);
+      logger.error('Error making move', error);
       return {
         success: false,
         error: 'Failed to process move'
@@ -287,7 +302,11 @@ export class GameService {
 
     this.activeRooms.set(roomId, updatedRoom);
 
-    console.log(`🔌 Player ${playerId} ${isConnected ? 'connected' : 'disconnected'} in room ${roomId}`);
+    logger.ws('Player connection status updated', undefined, {
+      playerId,
+      roomId,
+      isConnected
+    });
 
     return true;
   }
@@ -301,7 +320,7 @@ export class GameService {
     // For vs AI games, we could pause the game
     const room = this.getRoomByPlayerId(playerId);
     if (room && room.gameType === 'human-vs-ai') {
-      console.log(`⏸️ Pausing game in room ${room.id} due to player disconnect`);
+      logger.game('Pausing game due to player disconnect', room.id);
       // Game will resume when player reconnects
     }
   }
@@ -326,13 +345,13 @@ export class GameService {
           this.playerRoomMap.delete(player.id);
         }
 
-        console.log(`🧹 Cleaned up inactive room: ${roomId}`);
+        logger.debug('Cleaned up inactive room', { roomId });
         cleanedCount++;
       }
     }
 
     if (cleanedCount > 0) {
-      console.log(`🧹 Cleanup completed: ${cleanedCount} rooms removed`);
+      logger.info('Cleanup completed', { roomsRemoved: cleanedCount });
     }
 
     return cleanedCount;
@@ -388,7 +407,7 @@ export class GameService {
       this.playerRoomMap.delete(player.id);
     }
 
-    console.log(`🔒 Force closed room: ${roomId}`);
+    logger.warn('Force closed room', { roomId });
     return true;
   }
 

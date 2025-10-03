@@ -13,6 +13,7 @@ import {
 } from '../types/gomoku';
 import GameModel from '../models/GameModel';
 import OpeningBook from './OpeningBook';
+import { logger } from '../utils/logger';
 
 /**
  * AIService - High-performance Gomoku AI optimized for server
@@ -150,13 +151,20 @@ export class AIService {
     const startTime = Date.now();
 
     try {
-      console.log(`🤖 AI (${aiSymbol}) calculating move for game ${gameState.id}...`);
+      logger.ai('Calculating move', {
+        aiSymbol,
+        gameId: gameState.id
+      });
 
       // 1. Quick win/block checks (HIGHEST PRIORITY - immediate tactical moves)
       const immediateMove = this.findImmediateMove(gameState.board, aiSymbol);
       if (immediateMove) {
         const timeElapsed = Date.now() - startTime;
-        console.log(`⚡ AI found immediate move in ${timeElapsed}ms: (${immediateMove.row}, ${immediateMove.col})`);
+        logger.ai('Found immediate move', {
+          row: immediateMove.row,
+          col: immediateMove.col,
+          timeElapsed
+        });
 
         return {
           row: immediateMove.row,
@@ -176,7 +184,11 @@ export class AIService {
         // Prioritize VCF (forced win)
         if (threats.vcfThreat) {
           const timeElapsed = Date.now() - startTime;
-          console.log(`🗡️ AI found VCF threat in ${timeElapsed}ms: (${threats.vcfThreat.row}, ${threats.vcfThreat.col})`);
+          logger.ai('Found VCF threat', {
+            row: threats.vcfThreat.row,
+            col: threats.vcfThreat.col,
+            timeElapsed
+          });
 
           return {
             row: threats.vcfThreat.row,
@@ -192,7 +204,11 @@ export class AIService {
         // Then fork threats
         if (threats.forkThreat) {
           const timeElapsed = Date.now() - startTime;
-          console.log(`🔱 AI found fork threat in ${timeElapsed}ms: (${threats.forkThreat.row}, ${threats.forkThreat.col})`);
+          logger.ai('Found fork threat', {
+            row: threats.forkThreat.row,
+            col: threats.forkThreat.col,
+            timeElapsed
+          });
 
           return {
             row: threats.forkThreat.row,
@@ -208,7 +224,11 @@ export class AIService {
         // Finally double threats
         if (threats.doubleThreat) {
           const timeElapsed = Date.now() - startTime;
-          console.log(`⚔️ AI found double threat in ${timeElapsed}ms: (${threats.doubleThreat.row}, ${threats.doubleThreat.col})`);
+          logger.ai('Found double threat', {
+            row: threats.doubleThreat.row,
+            col: threats.doubleThreat.col,
+            timeElapsed
+          });
 
           return {
             row: threats.doubleThreat.row,
@@ -227,7 +247,11 @@ export class AIService {
         const openingMove = this.getOpeningBookMove(gameState.board, aiSymbol);
         if (openingMove) {
           const timeElapsed = Date.now() - startTime;
-          console.log(`📚 AI using opening book move in ${timeElapsed}ms: (${openingMove.row}, ${openingMove.col})`);
+          logger.ai('Using opening book move', {
+            row: openingMove.row,
+            col: openingMove.col,
+            timeElapsed
+          });
 
           return {
             row: openingMove.row,
@@ -247,7 +271,10 @@ export class AIService {
       let searchDepth = 1;
 
       // Iterative deepening with Aspiration Windows (Phase 2)
-      console.log(`🧠 AI starting deep search (max depth: ${this.AI_CONFIG.maxDepth}, max time: ${this.AI_CONFIG.maxTimePerMove}ms)...`);
+      logger.ai('Starting deep search', {
+        maxDepth: this.AI_CONFIG.maxDepth,
+        maxTime: this.AI_CONFIG.maxTimePerMove
+      });
 
       for (let depth = 1; depth <= this.AI_CONFIG.maxDepth; depth++) {
         const timeElapsed = Date.now() - startTime;
@@ -255,11 +282,11 @@ export class AIService {
 
         // Time limit check (use 80% of available time for iterative deepening)
         if (timeElapsed > this.AI_CONFIG.maxTimePerMove * 0.8) {
-          console.log(`⏰ AI time limit reached at depth ${depth} (${timeElapsed}ms elapsed)`);
+          logger.debug('AI time limit reached', { depth, timeElapsed });
           break;
         }
 
-        console.log(`🔍 Searching depth ${depth}... (${timeElapsed}ms elapsed so far)`);
+        logger.debug('Searching depth', { depth, timeElapsed });
         let result;
 
         // ====== ASPIRATION WINDOWS (Phase 2) ======
@@ -281,7 +308,7 @@ export class AIService {
 
           // If score falls outside window, re-search with full window
           if (result.score <= alpha || result.score >= beta) {
-            console.log(`🔄 Aspiration window failed at depth ${depth}, re-searching`);
+            logger.debug('Aspiration window failed, re-searching', { depth });
             result = this.minimaxAlphaBeta(
               gameState.board,
               depth,
@@ -311,17 +338,23 @@ export class AIService {
           searchDepth = depth;
 
           const depthTime = Date.now() - depthStartTime;
-          console.log(`✅ Depth ${depth} complete: move (${bestMove.row},${bestMove.col}), score ${bestScore}, time ${depthTime}ms, nodes ${this.searchStats.nodesSearched}`);
+          logger.debug('Depth complete', {
+            depth,
+            move: `(${bestMove.row},${bestMove.col})`,
+            score: bestScore,
+            time: depthTime,
+            nodes: this.searchStats.nodesSearched
+          });
 
           // If we found a winning move, no need to search deeper
           if (bestScore >= this.PATTERN_VALUES.OPEN_FOUR) {
-            console.log(`🎯 AI found winning move at depth ${depth}! (score: ${bestScore})`);
+            logger.ai('Found winning move', { depth, score: bestScore });
             break;
           }
 
           // If we found a very strong position, we can be confident
           if (bestScore >= this.PATTERN_VALUES.OPEN_THREE * 2) {
-            console.log(`💪 AI found strong position at depth ${depth} (score: ${bestScore})`);
+            logger.debug('Found strong position', { depth, score: bestScore });
             // Continue searching but with high confidence
           }
         }
@@ -336,20 +369,26 @@ export class AIService {
       const timeElapsed = Date.now() - startTime;
       const confidence = this.calculateConfidence(bestScore, searchDepth);
 
-      console.log(`\n${'='.repeat(80)}`);
-      console.log(`🤖 AI FINAL DECISION: (${bestMove.row}, ${bestMove.col})`);
-      console.log(`   Score: ${bestScore}, Depth reached: ${searchDepth}, Time: ${timeElapsed}ms`);
-      console.log(`${'='.repeat(80)}`);
-      console.log(`📊 PHASE 1 OPTIMIZATIONS:`);
-      console.log(`   • Nodes searched: ${this.searchStats.nodesSearched}`);
-      console.log(`   • Cache hits: ${this.searchStats.cacheHits} (${((this.searchStats.cacheHits / this.searchStats.nodesSearched) * 100).toFixed(1)}% hit rate)`);
-      console.log(`   • Killer move hits: ${this.searchStats.killerHits} ${this.searchStats.killerHits > 0 ? '✅' : '⚠️'}`);
-      console.log(`   • Null-move cutoffs: ${this.searchStats.nullMoveCutoffs} ${this.searchStats.nullMoveCutoffs > 0 ? '✅' : '⚠️'}`);
-      console.log(`📊 PHASE 2 OPTIMIZATIONS:`);
-      console.log(`   • LMR reductions: ${this.searchStats.lmrReductions} ${this.searchStats.lmrReductions > 0 ? '✅' : '⚠️'}`);
-      console.log(`   • Aspiration hits: ${this.searchStats.aspirationHits} ${this.searchStats.aspirationHits > 0 ? '✅' : '⚠️'}`);
-      console.log(`   • Threat extensions: ${this.searchStats.threatExtensions} ${this.searchStats.threatExtensions > 0 ? '✅' : '⚠️'}`);
-      console.log(`${'='.repeat(80)}\n`);
+      const hitRate = this.searchStats.nodesSearched > 0
+        ? ((this.searchStats.cacheHits / this.searchStats.nodesSearched) * 100).toFixed(1)
+        : '0.0';
+
+      logger.ai('AI final decision', {
+        move: `(${bestMove.row}, ${bestMove.col})`,
+        score: bestScore,
+        depth: searchDepth,
+        time: timeElapsed,
+        stats: {
+          nodesSearched: this.searchStats.nodesSearched,
+          cacheHits: this.searchStats.cacheHits,
+          hitRate: `${hitRate}%`,
+          killerHits: this.searchStats.killerHits,
+          nullMoveCutoffs: this.searchStats.nullMoveCutoffs,
+          lmrReductions: this.searchStats.lmrReductions,
+          aspirationHits: this.searchStats.aspirationHits,
+          threatExtensions: this.searchStats.threatExtensions
+        }
+      });
 
       return {
         row: bestMove.row,
@@ -362,7 +401,7 @@ export class AIService {
       };
 
     } catch (error) {
-      console.error('❌ AI calculation error:', error);
+      logger.error('AI calculation error', error);
 
       // Emergency fallback
       const fallbackMove = this.getFallbackMove(gameState.board);
@@ -993,49 +1032,49 @@ export class AIService {
     // 1. Check for immediate win (5 in a row)
     const winMove = this.findWinningMove(board, aiSymbol);
     if (winMove) {
-      console.log(`🎯 AI found winning move: (${winMove.row}, ${winMove.col})`);
+      logger.ai('Found winning move', { row: winMove.row, col: winMove.col });
       return { ...winMove, priority: this.PATTERN_VALUES.FIVE_IN_ROW };
     }
 
     // 2. CRITICAL: Block opponent's winning move (5 in a row)
     const blockWinMove = this.findWinningMove(board, opponent);
     if (blockWinMove) {
-      console.log(`🛡️ AI blocking opponent win: (${blockWinMove.row}, ${blockWinMove.col})`);
+      logger.ai('Blocking opponent win', { row: blockWinMove.row, col: blockWinMove.col });
       return { ...blockWinMove, priority: this.PATTERN_VALUES.OPEN_FOUR };
     }
 
     // 3. ATTACK: Check for our own 4 in a row opportunity (BEFORE blocking opponent's 4)
     const makeFourMove = this.findFourInRowMove(board, aiSymbol);
     if (makeFourMove) {
-      console.log(`⚔️ AI creating 4-in-row threat: (${makeFourMove.row}, ${makeFourMove.col})`);
+      logger.ai('Creating 4-in-row threat', { row: makeFourMove.row, col: makeFourMove.col });
       return { ...makeFourMove, priority: this.PATTERN_VALUES.CLOSED_FOUR };
     }
 
     // 4. DEFENSE: Block opponent's 4 in a row (MUST block!)
     const blockFourMove = this.findFourInRowMove(board, opponent);
     if (blockFourMove) {
-      console.log(`🛡️ AI blocking opponent 4-in-row: (${blockFourMove.row}, ${blockFourMove.col})`);
+      logger.ai('Blocking opponent 4-in-row', { row: blockFourMove.row, col: blockFourMove.col });
       return { ...blockFourMove, priority: this.PATTERN_VALUES.CLOSED_FOUR * 0.95 }; // Slightly lower than our own
     }
 
     // 5. ATTACK: Check for open four opportunities (unstoppable threat)
     const openFourMove = this.findOpenFourMove(board, aiSymbol);
     if (openFourMove) {
-      console.log(`⚔️ AI creating open-four (unstoppable): (${openFourMove.row}, ${openFourMove.col})`);
+      logger.ai('Creating open-four (unstoppable)', { row: openFourMove.row, col: openFourMove.col });
       return { ...openFourMove, priority: this.PATTERN_VALUES.OPEN_FOUR };
     }
 
     // 6. ATTACK: Create our own open three
     const makeThreeMove = this.findOpenThreeMove(board, aiSymbol);
     if (makeThreeMove) {
-      console.log(`⚔️ AI creating open-three: (${makeThreeMove.row}, ${makeThreeMove.col})`);
+      logger.ai('Creating open-three', { row: makeThreeMove.row, col: makeThreeMove.col });
       return { ...makeThreeMove, priority: this.PATTERN_VALUES.OPEN_THREE };
     }
 
     // 7. DEFENSE: Block opponent's open three (lower priority than our attacks)
     const blockThreeMove = this.findOpenThreeMove(board, opponent);
     if (blockThreeMove) {
-      console.log(`🛡️ AI blocking opponent open-three: (${blockThreeMove.row}, ${blockThreeMove.col})`);
+      logger.ai('Blocking opponent open-three', { row: blockThreeMove.row, col: blockThreeMove.col });
       return { ...blockThreeMove, priority: this.PATTERN_VALUES.OPEN_THREE * 0.9 }; // Lower priority
     }
 
@@ -1299,7 +1338,7 @@ export class AIService {
       .fill(null)
       .map(() => Array(GAME_CONFIG.BOARD_SIZE).fill(0));
 
-    console.log('🧹 AI cache cleared (transposition + killer + history)');
+    logger.info('AI cache cleared (transposition + killer + history)');
   }
 
   // =================================================================
@@ -1427,13 +1466,13 @@ export class AIService {
       if (openingMove) {
         // Verify move is valid
         if (board[openingMove.row]?.[openingMove.col] === null) {
-          console.log(`📚 Opening book active (move ${moveCount}/4)`);
+          logger.debug('Opening book active', { move: moveCount, maxMoves: 4 });
           return openingMove;
         }
       }
     }
 
-    console.log(`🧠 Opening book finished (move ${moveCount}), switching to deep search`);
+    logger.debug('Opening book finished, switching to deep search', { moveCount });
     return null; // Use regular AI after opening
   }
 
