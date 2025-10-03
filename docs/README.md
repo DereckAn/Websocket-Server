@@ -7,12 +7,16 @@ Documentación completa del servidor de juegos Gomoku construido con Bun.js
 ## 📋 Índice de Documentación
 
 ### 🚀 Producción y Despliegue
+- **[PRODUCTION-CHECKLIST.md](./PRODUCTION-CHECKLIST.md)** - ⭐ Checklist pre-producción actualizado (Enero 2025)
 - **[PRODUCTION-READINESS.md](./PRODUCTION-READINESS.md)** - Checklist completo para preparar el servidor para producción
 - **[PRODUCTION-SETUP.md](./PRODUCTION-SETUP.md)** - Guía paso a paso de configuración para producción
 
 ### 📝 Logging y Monitoreo
 - **[LOGGING.md](./LOGGING.md)** - ⭐ Guía completa del sistema de logging estructurado
 - **[LOGGING-MIGRATION.md](./LOGGING-MIGRATION.md)** - Resumen del proceso de migración de console.log a logger
+
+### 🟦 Integración con Square
+- **[SQUARE-INTEGRATION.md](./SQUARE-INTEGRATION.md)** - ⭐ Guía completa de integración con Square POS webhooks
 
 ---
 
@@ -24,11 +28,15 @@ Documentación completa del servidor de juegos Gomoku construido con Bun.js
    - [LOGGING.md](./LOGGING.md) - Cómo usar el logger correctamente
    - Ver ejemplos en `src/controllers/GomokuController.ts`
 
-2. **Para despliegue:**
+2. **Para integración con Square:**
+   - [SQUARE-INTEGRATION.md](./SQUARE-INTEGRATION.md) - Setup completo de webhooks
+   - Ver ejemplos en `src/controllers/SquareController.ts`
+
+3. **Para despliegue:**
    - [PRODUCTION-SETUP.md](./PRODUCTION-SETUP.md) - Configuración inicial
    - [PRODUCTION-READINESS.md](./PRODUCTION-READINESS.md) - Checklist final
 
-3. **Para entender la migración:**
+4. **Para entender la migración:**
    - [LOGGING-MIGRATION.md](./LOGGING-MIGRATION.md) - Proceso completo
 
 ---
@@ -57,6 +65,17 @@ Documentación completa del servidor de juegos Gomoku construido con Bun.js
 **Cuándo leer:**
 - **Primera vez desplegando?** → Lee ambos en orden
 - **Revisión pre-deploy?** → PRODUCTION-READINESS.md
+
+### Square Integration
+
+| Documento | Descripción | Para Quién |
+|-----------|-------------|------------|
+| [SQUARE-INTEGRATION.md](./SQUARE-INTEGRATION.md) | Guía completa de webhooks | ✅ Todos los desarrolladores |
+
+**Cuándo leer:**
+- **Configurando webhooks?** → Lee sección Setup
+- **Debugging webhooks?** → Lee sección Troubleshooting
+- **Frontend admin_mich?** → Lee sección Testing
 
 ---
 
@@ -187,6 +206,7 @@ logger.error('Payment failed', error, { orderId, amount });
 |------|--------|------|
 | Logging | ✅ Completo | LOGGING.md, LOGGING-MIGRATION.md |
 | Producción | ✅ Completo | PRODUCTION-*.md |
+| Square Integration | ✅ Completo | SQUARE-INTEGRATION.md |
 | API | 🚧 Pendiente | - |
 | Arquitectura | 🚧 Pendiente | - |
 
@@ -268,6 +288,8 @@ R: Lee [LOGGING.md](./LOGGING.md) sección "Niveles de Log"
 **Fecha:** 15 de Enero, 2025
 
 **Cambios recientes:**
+- ✅ Agregado SQUARE-INTEGRATION.md - Guía completa de integración con Square
+- ✅ Corregido servidor para inicializar servicios de Square
 - ✅ Agregado LOGGING.md - Sistema de logging completo
 - ✅ Agregado LOGGING-MIGRATION.md - Resumen de migración
 - ✅ Actualizado README.md con índice completo

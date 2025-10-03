@@ -53,7 +53,7 @@ export class CleanupService {
       const startTime = Date.now();
       logger.debug('Starting cleanup cycle...');
 
-      const allRooms = await GameService.getAllRooms();
+      const allRooms = GameService.getAllRooms();
       let cleanedCount = 0;
 
       for (const room of allRooms) {

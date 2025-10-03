@@ -6,6 +6,8 @@ import Routes from './routes/index';
 import GameService from './services/GameService';
 import AIService from './services/AIService';
 import WebSocketService from './services/WebSocketService';
+import { SquareService } from './services/SquareService';
+import { AdminWebSocketService } from './services/AdminWebSocketService';
 import GomokuController from './controllers/GomokuController';
 import SquareController from './controllers/SquareController';
 import CleanupService from './services/CleanupService';
@@ -38,6 +40,10 @@ logger.info('Starting Gomoku Game Server...', {
   logLevel: env.LOG_LEVEL,
 });
 
+// Initialize Square services
+SquareService.initialize();
+AdminWebSocketService.initialize();
+
 // Start cleanup service
 CleanupService.start();
 
@@ -50,6 +56,11 @@ shutdownHandler.register(async () => {
 shutdownHandler.register(async () => {
   logger.info('Closing WebSocket connections...');
   WebSocketService.cleanupStaleConnections();
+});
+
+shutdownHandler.register(async () => {
+  logger.info('Closing admin WebSocket connections...');
+  AdminWebSocketService.stop();
 });
 
 shutdownHandler.register(async () => {

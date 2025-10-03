@@ -275,6 +275,13 @@ export class GameService {
     return this.activeRooms.get(roomId) || null;
   }
 
+  /**
+   * Gets all active rooms (for cleanup and monitoring)
+   */
+  static getAllRooms(): Room[] {
+    return Array.from(this.activeRooms.values());
+  }
+
   // =================================================================
   // PLAYER CONNECTION MANAGEMENT
   // =================================================================

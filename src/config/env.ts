@@ -2,7 +2,8 @@
 // ENVIRONMENT CONFIGURATION WITH VALIDATION
 // =================================================================
 
-import { logger } from "@/utils/logger";
+// Note: Cannot import logger here due to circular dependency
+// Logger will be available after this module loads
 
 export interface EnvConfig {
   NODE_ENV: "development" | "production" | "test";
@@ -80,12 +81,13 @@ function loadEnvConfig(): EnvConfig {
     nodeEnv === "production" &&
     allowedOrigins.some((origin) => origin.includes("localhost"))
   ) {
-    logger.warn("Using localhost origins in production mode!");
+    console.warn("⚠️  WARNING: Using localhost origins in production mode!");
   }
 
   // Check for errors
   if (errors.length > 0) {
-    logger.error("Environment validation failed", { errors });
+    console.error("❌ Environment validation failed:");
+    errors.forEach((error) => console.error(`  - ${error}`));
     throw new Error("Invalid environment configuration");
   }
 
@@ -109,9 +111,9 @@ function loadEnvConfig(): EnvConfig {
     MAX_MOVES_PER_MINUTE: getNumber("MAX_MOVES_PER_MINUTE", 60),
   };
 
-  // Log configuration in development
+  // Log configuration in development (using console to avoid circular dependency)
   if (config.NODE_ENV === "development") {
-    logger.info("🔧 Configuration loaded:", {
+    console.log("🔧 Configuration loaded:", {
       environment: config.NODE_ENV,
       port: config.PORT,
       logLevel: config.LOG_LEVEL,

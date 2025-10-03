@@ -454,7 +454,9 @@ export class RoomModel {
       room.winStats.consecutiveHumanWins = 0;
     }
 
-    return { specialMessage, achievedMilestone };
+    return specialMessage !== undefined
+      ? { specialMessage, achievedMilestone }
+      : { achievedMilestone };
   }
 
   // =================================================================

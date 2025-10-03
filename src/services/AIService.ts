@@ -340,7 +340,7 @@ export class AIService {
           const depthTime = Date.now() - depthStartTime;
           logger.debug('Depth complete', {
             depth,
-            move: `(${bestMove.row},${bestMove.col})`,
+            move: `(${bestMove!.row},${bestMove!.col})`, // Safe: bestMove is assigned just above
             score: bestScore,
             time: depthTime,
             nodes: this.searchStats.nodesSearched
@@ -374,7 +374,7 @@ export class AIService {
         : '0.0';
 
       logger.ai('AI final decision', {
-        move: `(${bestMove.row}, ${bestMove.col})`,
+        move: `(${bestMove!.row}, ${bestMove!.col})`, // Safe: fallback assigned if null
         score: bestScore,
         depth: searchDepth,
         time: timeElapsed,
@@ -391,8 +391,8 @@ export class AIService {
       });
 
       return {
-        row: bestMove.row,
-        col: bestMove.col,
+        row: bestMove!.row, // Safe: fallback assigned if null
+        col: bestMove!.col,
         score: bestScore,
         timeElapsed,
         nodesSearched: this.searchStats.nodesSearched,
@@ -613,8 +613,9 @@ export class AIService {
 
         // ====== HISTORY HEURISTIC ======
         // Update history table (this move was good)
-        if (this.AI_CONFIG.useHistoryHeuristic && bestMove) {
-          this.historyTable[bestMove.row][bestMove.col] += depth * depth;
+        if (this.AI_CONFIG.useHistoryHeuristic && bestMove && this.historyTable[bestMove.row]) {
+          const row = this.historyTable[bestMove.row];
+          row![bestMove.col] = (row![bestMove.col] ?? 0) + depth * depth;
         }
 
         break; // Prune remaining moves
@@ -622,8 +623,9 @@ export class AIService {
     }
 
     // Update history for best move even if no cutoff
-    if (this.AI_CONFIG.useHistoryHeuristic && bestMove) {
-      this.historyTable[bestMove.row][bestMove.col] += depth;
+    if (this.AI_CONFIG.useHistoryHeuristic && bestMove && this.historyTable[bestMove.row]) {
+      const row = this.historyTable[bestMove.row];
+      row![bestMove.col] = (row![bestMove.col] ?? 0) + depth;
     }
 
     // Cache result
@@ -840,14 +842,16 @@ export class AIService {
 
         // ====== HISTORY HEURISTIC BONUS ======
         // Add bonus based on historical success
-        if (this.AI_CONFIG.useHistoryHeuristic) {
-          priority += this.historyTable[pos.row][pos.col] * 100;
+        if (this.AI_CONFIG.useHistoryHeuristic && this.historyTable[pos.row]) {
+          const row = this.historyTable[pos.row];
+          priority += (row![pos.col] ?? 0) * 100;
         }
 
         // Test placing our stone
         const testBoard = GameModel.copyBoard(board);
-        if (testBoard[pos.row]) {
-          testBoard[pos.row][pos.col] = player;
+        const testRow = testBoard[pos.row];
+        if (testRow) {
+          testRow[pos.col] = player;
         }
 
         // Priority 1: Winning moves (highest)
@@ -863,8 +867,9 @@ export class AIService {
         priority += this.evaluateMovePosition(testBoard, pos.row, pos.col, player);
 
         // Reset board and test opponent blocking
-        if (testBoard[pos.row]) {
-          testBoard[pos.row][pos.col] = opponent;
+        const testRow2 = testBoard[pos.row];
+        if (testRow2) {
+          testRow2[pos.col] = opponent;
         }
 
         // Priority 4: Blocking opponent winning moves
@@ -1117,8 +1122,9 @@ export class AIService {
       if (board[pos.row]?.[pos.col] === null) {
         // Test placing stone here
         const testBoard = GameModel.copyBoard(board);
-        if (testBoard[pos.row]) {
-          testBoard[pos.row][pos.col] = player;
+        const testRow = testBoard[pos.row];
+        if (testRow) {
+          testRow[pos.col] = player;
         }
 
         // Check if this creates an open four in any direction
@@ -1144,8 +1150,9 @@ export class AIService {
       if (board[pos.row]?.[pos.col] === null) {
         // Test placing stone here
         const testBoard = GameModel.copyBoard(board);
-        if (testBoard[pos.row]) {
-          testBoard[pos.row][pos.col] = player;
+        const testRow = testBoard[pos.row];
+        if (testRow) {
+          testRow[pos.col] = player;
         }
 
         // Check if this creates 4 in a row in any direction
@@ -1171,8 +1178,9 @@ export class AIService {
       if (board[pos.row]?.[pos.col] === null) {
         // Test placing stone here
         const testBoard = GameModel.copyBoard(board);
-        if (testBoard[pos.row]) {
-          testBoard[pos.row][pos.col] = player;
+        const testRow = testBoard[pos.row];
+        if (testRow) {
+          testRow[pos.col] = player;
         }
 
         // Check if this creates open three in any direction
@@ -1361,8 +1369,9 @@ export class AIService {
     for (const pos of relevantPositions) {
       if (board[pos.row]?.[pos.col] === null) {
         const testBoard = GameModel.copyBoard(board);
-        if (testBoard[pos.row]) {
-          testBoard[pos.row][pos.col] = player;
+        const testRow = testBoard[pos.row];
+        if (testRow) {
+          testRow[pos.col] = player;
         }
 
         // Check for double threat (two ways to win)
@@ -1437,8 +1446,9 @@ export class AIService {
   private static hasVCF(board: Board, move: Position, player: GameSymbol): boolean {
     // Simplified VCF detection - checks if move creates multiple simultaneous threats
     const testBoard = GameModel.copyBoard(board);
-    if (testBoard[move.row]) {
-      testBoard[move.row][move.col] = player;
+    const testRow = testBoard[move.row];
+    if (testRow) {
+      testRow[move.col] = player;
     }
 
     const threats = this.countWinningThreats(testBoard, player);
@@ -1597,12 +1607,14 @@ export class AIService {
     };
 
     for (let row = 0; row < GAME_CONFIG.BOARD_SIZE; row++) {
-      table[row] = [];
+      const rowArray: bigint[][] = [];
+      table[row] = rowArray;
       for (let col = 0; col < GAME_CONFIG.BOARD_SIZE; col++) {
-        table[row][col] = [];
+        const colArray: bigint[] = [];
+        rowArray[col] = colArray;
         // 0 = X, 1 = O
-        table[row][col][0] = random();
-        table[row][col][1] = random();
+        colArray[0] = random();
+        colArray[1] = random();
       }
     }
 
@@ -1619,10 +1631,11 @@ export class AIService {
     for (let row = 0; row < GAME_CONFIG.BOARD_SIZE; row++) {
       for (let col = 0; col < GAME_CONFIG.BOARD_SIZE; col++) {
         const cell = board[row]?.[col];
-        if (cell === 'X') {
-          hash ^= this.zobristTable[row][col][0];
-        } else if (cell === 'O') {
-          hash ^= this.zobristTable[row][col][1];
+        const zobristEntry = this.zobristTable[row]?.[col];
+        if (cell === 'X' && zobristEntry) {
+          hash ^= zobristEntry[0]!;
+        } else if (cell === 'O' && zobristEntry) {
+          hash ^= zobristEntry[1]!;
         }
       }
     }
@@ -1636,7 +1649,8 @@ export class AIService {
    */
   private static updateZobristHash(hash: bigint, row: number, col: number, player: GameSymbol): bigint {
     const playerIndex = player === 'X' ? 0 : 1;
-    return hash ^ this.zobristTable[row][col][playerIndex];
+    const zobristEntry = this.zobristTable[row]?.[col];
+    return zobristEntry ? hash ^ zobristEntry[playerIndex]! : hash;
   }
 
   // =================================================================
@@ -1665,8 +1679,11 @@ export class AIService {
     // Count non-zero history entries
     let historyEntries = 0;
     for (let row = 0; row < GAME_CONFIG.BOARD_SIZE; row++) {
-      for (let col = 0; col < GAME_CONFIG.BOARD_SIZE; col++) {
-        if (this.historyTable[row][col] > 0) historyEntries++;
+      const historyRow = this.historyTable[row];
+      if (historyRow) {
+        for (let col = 0; col < GAME_CONFIG.BOARD_SIZE; col++) {
+          if ((historyRow[col] ?? 0) > 0) historyEntries++;
+        }
       }
     }
 

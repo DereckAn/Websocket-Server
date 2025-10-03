@@ -232,10 +232,15 @@ export class SquareService {
     try {
       logger.info(`🔍 Fetching order from Square API: ${orderId}`);
 
-      // TODO: Fix Square API call - temporary mock for compilation
-      // const { result } = await this.squareClient.orders.retrieveOrder(orderId);
-      logger.warn('⚠️ Square API call temporarily disabled for compilation');
-      return null;
+      const { result } = await this.squareClient.ordersApi.retrieveOrder(orderId);
+
+      if (!result.order) {
+        logger.warn(`Order not found in Square API: ${orderId}`);
+        return null;
+      }
+
+      logger.info(`✅ Order retrieved from Square API: ${orderId}`);
+      return result.order as SquareOrder;
 
     } catch (error) {
       logger.error(`❌ Error retrieving order ${orderId}:`, error);
