@@ -89,15 +89,25 @@ class Logger {
   /**
    * Log error message
    */
-  error(message: string, error?: Error | any) {
+  error(message: string, error?: Error | any, additionalData?: any) {
     if (this.shouldLog('error')) {
-      const data = error instanceof Error
-        ? {
-            name: error.name,
-            message: error.message,
-            stack: isProduction() ? undefined : error.stack,
-          }
-        : error;
+      let data: any;
+
+      if (error instanceof Error) {
+        data = {
+          name: error.name,
+          message: error.message,
+          stack: isProduction() ? undefined : error.stack,
+          ...(additionalData && additionalData),
+        };
+      } else if (error) {
+        data = {
+          ...error,
+          ...(additionalData && additionalData),
+        };
+      } else {
+        data = additionalData;
+      }
 
       console.error(this.formatMessage('error', message, data));
     }

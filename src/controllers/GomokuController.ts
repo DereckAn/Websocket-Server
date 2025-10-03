@@ -568,7 +568,7 @@ export class GomokuController {
           // Check if game ended
           if (moveResult.gameState.status === 'won' || moveResult.gameState.status === 'draw') {
             // Update win stats for AI games
-            let statsResult = { specialMessage: undefined as string | undefined, achievedMilestone: false };
+            let statsResult: { specialMessage: string | undefined; achievedMilestone: boolean } = { specialMessage: undefined, achievedMilestone: false };
 
             if (room.gameType === 'human-vs-ai') {
               logger.game('Game ended, updating win stats', roomId);
@@ -626,7 +626,7 @@ export class GomokuController {
         logger.ws('Broadcasting game_over (human move ended game)', undefined, { roomId });
 
         // Update win stats for AI games BEFORE sending the message
-        let statsResult = { specialMessage: undefined as string | undefined, achievedMilestone: false };
+        let statsResult: { specialMessage: string | undefined; achievedMilestone: boolean } = { specialMessage: undefined, achievedMilestone: false };
         if (room.gameType === 'human-vs-ai') {
           logger.game('Updating win stats for human win', roomId);
           const aiPlayer = room.game.players.find(p => p.type === 'ai');

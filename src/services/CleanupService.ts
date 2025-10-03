@@ -79,7 +79,7 @@ export class CleanupService {
           });
 
           // Delete the room
-          await GameService.deleteRoom(room.id);
+          GameService.forceCloseGame(room.id);
           cleanedCount++;
         }
       }

@@ -6,6 +6,7 @@ import {
   type Room,
   type GameState,
   type Player,
+  type GameSymbol,
   GAME_CONFIG
 } from '../types/gomoku';
 import GameModel from './GameModel';
@@ -415,9 +416,9 @@ export class RoomModel {
    */
   static updateWinStats(
     room: Room,
-    winner: 'X' | 'O' | null,
-    humanSymbol: 'X' | 'O'
-  ): { specialMessage?: string; achievedMilestone: boolean } {
+    winner: GameSymbol | null,
+    humanSymbol: GameSymbol
+  ): { specialMessage: string | undefined; achievedMilestone: boolean } {
     if (!room.winStats) {
       room.winStats = {
         humanWins: 0,
@@ -454,9 +455,7 @@ export class RoomModel {
       room.winStats.consecutiveHumanWins = 0;
     }
 
-    return specialMessage !== undefined
-      ? { specialMessage, achievedMilestone }
-      : { achievedMilestone };
+    return { specialMessage, achievedMilestone };
   }
 
   // =================================================================

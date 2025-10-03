@@ -1,52 +1,63 @@
+# =================================================================
+# Docker Compose - Gomoku Game Server with Square Integration
+# =================================================================
+
 version: '3.8'
 
 services:
   # Production service
-  webhook-server:
-    build: 
+  gomoku-server:
+    build:
       context: .
       target: production
-    container_name: square-webhook-server
+    container_name: gomoku-server
     ports:
-      - "${WEBHOOK_PORT:-3000}:3000"
+      - "${PORT:-3000}:3000"
     environment:
-      # Square Configuration
-      - SQUARE_WEBHOOK_SIGNATURE_KEY=${SQUARE_WEBHOOK_SIGNATURE_KEY}
-      - SQUARE_ACCESS_TOKEN=${SQUARE_ACCESS_TOKEN}
-      - SQUARE_APPLICATION_ID=${SQUARE_APPLICATION_ID}
-      - SQUARE_ENVIRONMENT=${SQUARE_ENVIRONMENT:-sandbox}
-      
       # Server Configuration
-      - WEBHOOK_PORT=3000
-      - WEBSOCKET_PORT=3001
-      - NODE_ENV=${NODE_ENV:-production}
-      
-      # CORS Configuration
-      - CORS_ORIGIN=${CORS_ORIGIN:-*}
-      
-      # Logging
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-    
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+
+      # CORS - Add your frontend domains
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3001}
+
+      # Square API (Production)
+      SQUARE_ACCESS_TOKEN: ${SQUARE_ACCESS_TOKEN}
+      SQUARE_WEBHOOK_SIGNATURE_KEY: ${SQUARE_WEBHOOK_SIGNATURE_KEY}
+      SQUARE_ENVIRONMENT: ${SQUARE_ENVIRONMENT:-production}
+      WEBHOOK_URL: ${WEBHOOK_URL:-http://localhost:3000/webhooks/square}
+
+      # Gomoku Game Configuration
+      MAX_ACTIVE_ROOMS: ${MAX_ACTIVE_ROOMS:-1000}
+      ROOM_CLEANUP_INTERVAL: ${ROOM_CLEANUP_INTERVAL:-300000}
+      INACTIVE_ROOM_TIMEOUT: ${INACTIVE_ROOM_TIMEOUT:-1800000}
+      AI_MAX_TIME_PER_MOVE: ${AI_MAX_TIME_PER_MOVE:-10000}
+
+      # Rate Limiting
+      MAX_GAME_CREATIONS_PER_MINUTE: ${MAX_GAME_CREATIONS_PER_MINUTE:-5}
+      MAX_MOVES_PER_MINUTE: ${MAX_MOVES_PER_MINUTE:-60}
+
     # Health check
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
-      timeout: 10s
+      timeout: 3s
       retries: 3
-      start_period: 10s
-    
+      start_period: 5s
+
     restart: unless-stopped
-    
-    # Resource limits for low-traffic usage
+
+    # Resource limits (adjust based on your needs)
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: '0.5'
+          memory: 512M
+          cpus: '1'
         reservations:
           memory: 128M
           cpus: '0.25'
-    
+
     # Logging configuration
     logging:
       driver: "json-file"
@@ -55,42 +66,71 @@ services:
         max-file: "3"
 
     networks:
-      - webhook-network
+      - gomoku-network
 
   # Development service with hot reload
-  webhook-server-dev:
-    build: 
+  gomoku-server-dev:
+    build:
       context: .
       target: builder
-    container_name: square-webhook-server-dev
+    container_name: gomoku-server-dev
     ports:
-      - "${WEBHOOK_PORT:-3000}:3000"
+      - "${PORT:-3000}:3000"
     environment:
-      # Same environment variables as production
-      - SQUARE_WEBHOOK_SIGNATURE_KEY=${SQUARE_WEBHOOK_SIGNATURE_KEY}
-      - SQUARE_ACCESS_TOKEN=${SQUARE_ACCESS_TOKEN}
-      - SQUARE_APPLICATION_ID=${SQUARE_APPLICATION_ID}
-      - SQUARE_ENVIRONMENT=${SQUARE_ENVIRONMENT:-sandbox}
-      - WEBHOOK_PORT=3000
-      - WEBSOCKET_PORT=3001
-      - NODE_ENV=development
-      - CORS_ORIGIN=${CORS_ORIGIN:-*}
-      - LOG_LEVEL=${LOG_LEVEL:-debug}
-    
+      # Server Configuration
+      NODE_ENV: development
+      PORT: 3000
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+
+      # CORS
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3001}
+
+      # Square API (Sandbox for development)
+      SQUARE_ACCESS_TOKEN: ${SQUARE_ACCESS_TOKEN}
+      SQUARE_WEBHOOK_SIGNATURE_KEY: ${SQUARE_WEBHOOK_SIGNATURE_KEY}
+      SQUARE_ENVIRONMENT: ${SQUARE_ENVIRONMENT:-sandbox}
+      WEBHOOK_URL: ${WEBHOOK_URL:-http://localhost:3000/webhooks/square}
+
+      # Gomoku Game Configuration
+      MAX_ACTIVE_ROOMS: ${MAX_ACTIVE_ROOMS:-100}
+      ROOM_CLEANUP_INTERVAL: ${ROOM_CLEANUP_INTERVAL:-300000}
+      INACTIVE_ROOM_TIMEOUT: ${INACTIVE_ROOM_TIMEOUT:-1800000}
+      AI_MAX_TIME_PER_MOVE: ${AI_MAX_TIME_PER_MOVE:-10000}
+
+      # Rate Limiting
+      MAX_GAME_CREATIONS_PER_MINUTE: ${MAX_GAME_CREATIONS_PER_MINUTE:-10}
+      MAX_MOVES_PER_MINUTE: ${MAX_MOVES_PER_MINUTE:-100}
+
     volumes:
       # Mount source code for hot reload
       - ./src:/app/src:ro
       - ./package.json:/app/package.json:ro
-    
+
     command: ["bun", "--watch", "src/index.ts"]
-    
+
     profiles:
       - dev
-    
+
     restart: unless-stopped
     networks:
-      - webhook-network
+      - gomoku-network
+
+  # Optional: Redis for future scaling (uncomment if needed)
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: gomoku-redis
+  #   ports:
+  #     - "6379:6379"
+  #   restart: unless-stopped
+  #   volumes:
+  #     - redis-data:/data
+  #   networks:
+  #     - gomoku-network
+
+# Volumes (uncomment if using Redis)
+# volumes:
+#   redis-data:
 
 networks:
-  webhook-network:
+  gomoku-network:
     driver: bridge

@@ -961,34 +961,6 @@ export class AIService {
   }
 
   /**
-   * Evaluates how important a move is (for move ordering)
-   * Enhanced with comprehensive position analysis
-   */
-  private static evaluateMoveImportance(
-    board: Board,
-    row: number,
-    col: number,
-    player: GameSymbol
-  ): number {
-    // Simulate placing the stone
-    const testBoard = GameModel.copyBoard(board);
-    if (testBoard[row]) {
-      testBoard[row][col] = player;
-    }
-
-    // Comprehensive evaluation
-    let importance = 0;
-
-    // Check for immediate threats/opportunities in all directions
-    for (const [deltaRow, deltaCol] of DIRECTIONS) {
-      const pattern = this.analyzePattern(testBoard, row, col, deltaRow, deltaCol, player);
-      importance += this.getPatternValue(pattern);
-    }
-
-    return importance;
-  }
-
-  /**
    * Counts threats created by a move
    */
   private static countThreats(board: Board, row: number, col: number, player: GameSymbol): number {
@@ -1487,38 +1459,6 @@ export class AIService {
   }
 
   /**
-   * Gets moves in center area (avoiding edges)
-   */
-  private static getCenterAreaMoves(board: Board, center: number): Position[] {
-    const moves: Position[] = [];
-    const radius = 3; // Stay within 3 squares of center
-
-    for (let dr = -radius; dr <= radius; dr++) {
-      for (let dc = -radius; dc <= radius; dc++) {
-        const row = center + dr;
-        const col = center + dc;
-
-        if (this.isValidPosition(row, col) && board[row]?.[col] === null) {
-          // Prefer positions closer to center
-          const distance = Math.abs(dr) + Math.abs(dc);
-          if (distance > 0) { // Don't include center itself
-            moves.push({ row, col });
-          }
-        }
-      }
-    }
-
-    // Sort by distance from center (closer = better)
-    moves.sort((a, b) => {
-      const distA = Math.abs(a.row - center) + Math.abs(a.col - center);
-      const distB = Math.abs(b.row - center) + Math.abs(b.col - center);
-      return distA - distB;
-    });
-
-    return moves;
-  }
-
-  /**
    * Counts total moves on board
    */
   private static getMoveCount(board: Board): number {
@@ -1531,13 +1471,6 @@ export class AIService {
       }
     }
     return count;
-  }
-
-  /**
-   * Checks if position is valid on board
-   */
-  private static isValidPosition(row: number, col: number): boolean {
-    return row >= 0 && row < GAME_CONFIG.BOARD_SIZE && col >= 0 && col < GAME_CONFIG.BOARD_SIZE;
   }
 
   /**
@@ -1619,38 +1552,6 @@ export class AIService {
     }
 
     return table;
-  }
-
-  /**
-   * Computes Zobrist hash for a board position
-   * O(board_size^2) but only called once per search
-   */
-  private static computeZobristHash(board: Board): bigint {
-    let hash = BigInt(0);
-
-    for (let row = 0; row < GAME_CONFIG.BOARD_SIZE; row++) {
-      for (let col = 0; col < GAME_CONFIG.BOARD_SIZE; col++) {
-        const cell = board[row]?.[col];
-        const zobristEntry = this.zobristTable[row]?.[col];
-        if (cell === 'X' && zobristEntry) {
-          hash ^= zobristEntry[0]!;
-        } else if (cell === 'O' && zobristEntry) {
-          hash ^= zobristEntry[1]!;
-        }
-      }
-    }
-
-    return hash;
-  }
-
-  /**
-   * Updates hash incrementally when a move is made
-   * O(1) - much faster than recomputing
-   */
-  private static updateZobristHash(hash: bigint, row: number, col: number, player: GameSymbol): bigint {
-    const playerIndex = player === 'X' ? 0 : 1;
-    const zobristEntry = this.zobristTable[row]?.[col];
-    return zobristEntry ? hash ^ zobristEntry[playerIndex]! : hash;
   }
 
   // =================================================================

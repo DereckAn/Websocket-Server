@@ -381,37 +381,6 @@ export class WebSocketService {
   // =================================================================
 
   /**
-   * Sets up heartbeat for connection health monitoring
-   */
-  private static setupHeartbeat(ws: any, connectionId: string): void {
-    const interval = setInterval(() => {
-      const connection = this.connections.get(connectionId);
-      if (!connection) {
-        clearInterval(interval);
-        return;
-      }
-
-      // Check if connection is still alive
-      const timeSinceLastPing = Date.now() - connection.lastPing.getTime();
-      if (timeSinceLastPing > GAME_CONFIG.WEBSOCKET_PING_INTERVAL * 4) {
-        logger.warn('Connection timed out', { connectionId });
-        this.handleDisconnection(connectionId);
-        clearInterval(interval);
-        return;
-      }
-
-      // Send ping
-      try {
-        ws.ping();
-      } catch (error) {
-        logger.error('Ping failed for connection', error, { connectionId });
-        this.handleDisconnection(connectionId);
-        clearInterval(interval);
-      }
-    }, GAME_CONFIG.WEBSOCKET_PING_INTERVAL);
-  }
-
-  /**
    * Cleans up stale connections
    * Should be called periodically
    */

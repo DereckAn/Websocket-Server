@@ -232,7 +232,9 @@ export class SquareService {
     try {
       logger.info(`🔍 Fetching order from Square API: ${orderId}`);
 
-      const { result } = await this.squareClient.ordersApi.retrieveOrder(orderId);
+      const result = await this.squareClient.orders.get({
+        orderId
+      });
 
       if (!result.order) {
         logger.warn(`Order not found in Square API: ${orderId}`);

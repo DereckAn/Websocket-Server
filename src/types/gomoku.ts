@@ -116,6 +116,8 @@ export type WSMessageType =
   | 'ai_move'              // AI made its move
   | 'game_state_update'    // Game state was updated
   | 'game_over'            // Game ended
+  | 'game_reset'           // Game was reset
+  | 'room_closed'          // Room was closed
   | 'error'                // Error occurred
   | 'admin_message'        // Admin message
   | 'ping'                 // Keep-alive ping
