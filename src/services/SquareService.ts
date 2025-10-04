@@ -105,11 +105,16 @@ export class SquareService {
 
       if (!isValid) {
         this.stats.errors.webhookVerificationErrors++;
-        logger.error('❌ Signature mismatch:', {
+        logger.error('❌ Signature mismatch - FULL DETAILS:', {
           received: request.signature,
           expected: expectedSignature,
           webhookUrl: request.webhookUrl,
-          bodyPreview: request.body.substring(0, 100)
+          webhookUrlLength: request.webhookUrl.length,
+          bodyLength: request.body.length,
+          bodyFirst200: request.body.substring(0, 200),
+          stringToSignFirst200: stringToSign.substring(0, 200),
+          signatureKeyLength: signatureKey.length,
+          signatureKeyFirst10: signatureKey.substring(0, 10) + '...'
         });
       }
 
