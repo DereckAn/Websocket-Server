@@ -193,20 +193,42 @@ export class SquareService {
         };
       }
 
-      // Extract order from event
-      const order = event.data?.object;
-      if (!order) {
+      // Extract order ID from webhook event
+      const orderId = event.data?.object?.order_created?.order_id ||
+                     event.data?.object?.order_updated?.order_id ||
+                     event.data?.id;
+
+      if (!orderId) {
+        logger.error('❌ No order ID found in webhook event:', event);
         return {
           success: false,
-          error: 'No order data in webhook event',
+          error: 'No order ID in webhook event',
           eventType: event.type,
           order: undefined
         };
       }
 
+      logger.info(`🔍 Fetching full order details from Square API: ${orderId}`);
+
+      // Fetch full order from Square API
+      const order = await this.getOrderById(orderId);
+
+      if (!order) {
+        logger.error(`❌ Order not found in Square API: ${orderId}`);
+        return {
+          success: false,
+          error: `Order ${orderId} not found in Square API`,
+          eventType: event.type,
+          order: undefined
+        };
+      }
+
+      logger.info(`✅ Order fetched from Square API: ${orderId}`);
+
       // Validate order
       const validation = OrderModel.validateOrder(order);
       if (!validation.isValid) {
+        logger.warn(`⚠️ Order validation failed: ${validation.errors.join(', ')}`);
         return {
           success: false,
           error: `Order validation failed: ${validation.errors.join(', ')}`,
@@ -222,7 +244,7 @@ export class SquareService {
       this.stats.ordersProcessed++;
       this.stats.lastOrderAt = new Date().toISOString();
 
-      logger.info(`✅ Order processed: ${formattedOrder.id} (${formattedOrder.state})`);
+      logger.info(`✅ Order processed successfully: ${formattedOrder.id} (${formattedOrder.state})`);
 
       return {
         success: true,
