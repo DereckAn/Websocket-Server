@@ -177,8 +177,9 @@ export class SquareService {
       }
 
       // Extract order ID from webhook event
-      const orderId = event.data?.object?.order_created?.order_id ||
-                     event.data?.object?.order_updated?.order_id ||
+      const webhookData = event.data?.object as any;
+      const orderId = webhookData?.order_created?.order_id ||
+                     webhookData?.order_updated?.order_id ||
                      event.data?.id;
 
       if (!orderId) {
@@ -260,15 +261,15 @@ export class SquareService {
     try {
       logger.info(`🔍 Fetching order from Square API: ${orderId}`);
 
-      const response = await squareClient.ordersApi.retrieveOrder(orderId);
+      const response = await squareClient.orders.get({orderId});
 
-      if (!response.result.order) {
+      if (!response.order) {
         logger.warn(`Order not found in Square API: ${orderId}`);
         return null;
       }
 
       logger.info(`✅ Order retrieved from Square API: ${orderId}`);
-      return response.result.order as SquareOrder;
+      return response.order as SquareOrder;
 
     } catch (error) {
       logger.error(`❌ Error retrieving order ${orderId}:`, error);
@@ -344,15 +345,6 @@ export class SquareService {
     };
   }
 
-  /**
-   * Gets Square client instance (for advanced operations)
-   */
-  static getSquareClient(): SquareClient {
-    if (!this.squareClient) {
-      throw new Error('Square client not initialized. Call SquareService.initialize() first.');
-    }
-    return this.squareClient;
-  }
 
   /**
    * Processes test webhook event
@@ -395,8 +387,8 @@ export class SquareService {
                         this.stats.errors.processingErrors > 0;
 
     let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
-
-    if (!config.isConfigured || !this.squareClient) {
+    
+    if (!config.isConfigured || squareClient) {
       status = 'unhealthy';
     } else if (recentErrors) {
       status = 'degraded';
@@ -406,7 +398,7 @@ export class SquareService {
       status,
       details: {
         configured: config.isConfigured,
-        clientInitialized: !!this.squareClient,
+        clientInitialized: !!squareClient,
         recentErrors,
         uptime: process.uptime()
       }
