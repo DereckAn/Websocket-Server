@@ -4,7 +4,7 @@ import { logger } from '../utils/logger';
 // =================================================================
 
 import crypto from 'crypto';
-import { SquareClient } from 'square';
+import squareClient from '../config/square-client';
 import { OrderModel } from '../models/OrderModel';
 import type {
   SquareOrder,
@@ -28,7 +28,6 @@ import type {
  * - Statistics tracking
  */
 export class SquareService {
-  private static squareClient: SquareClient;
   private static stats: SquareServiceStats = {
     webhooksProcessed: 0,
     ordersProcessed: 0,
@@ -41,26 +40,10 @@ export class SquareService {
   };
 
   /**
-   * Initializes the Square client
+   * Initializes the Square service (client is already initialized as singleton)
    */
   static initialize(): void {
-    const token = process.env.SQUARE_ACCESS_TOKEN;
-
-    if (!token) {
-      logger.warn('⚠️ SQUARE_ACCESS_TOKEN not configured - Square integration disabled');
-      return;
-    }
-
-    this.squareClient = new SquareClient({
-      token: token,
-      environment: process.env.SQUARE_ENVIRONMENT === 'production' ? 'Production' : 'Sandbox'
-    });
-
-    logger.info('✅ Square client initialized:', {
-      environment: process.env.SQUARE_ENVIRONMENT || 'sandbox',
-      tokenPresent: !!token,
-      tokenLength: token.length
-    });
+    logger.info('✅ Square service initialized (using singleton client)');
   }
 
   /**
@@ -270,10 +253,6 @@ export class SquareService {
    * Retrieves order by ID from Square API
    */
   static async getOrderById(orderId: string): Promise<SquareOrder | null> {
-    if (!this.squareClient) {
-      throw new Error('Square client not initialized');
-    }
-
     if (!OrderModel.isValidOrderId(orderId)) {
       throw new Error('Invalid order ID format');
     }
@@ -281,17 +260,15 @@ export class SquareService {
     try {
       logger.info(`🔍 Fetching order from Square API: ${orderId}`);
 
-      const result = await this.squareClient.orders.get({
-        orderId
-      });
+      const response = await squareClient.ordersApi.retrieveOrder(orderId);
 
-      if (!result.order) {
+      if (!response.result.order) {
         logger.warn(`Order not found in Square API: ${orderId}`);
         return null;
       }
 
       logger.info(`✅ Order retrieved from Square API: ${orderId}`);
-      return result.order as SquareOrder;
+      return response.result.order as SquareOrder;
 
     } catch (error) {
       logger.error(`❌ Error retrieving order ${orderId}:`, error);
