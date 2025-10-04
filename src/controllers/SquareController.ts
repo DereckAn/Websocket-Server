@@ -98,9 +98,27 @@ export class SquareController {
       }
 
       // Broadcast successful orders to admin clients
+      logger.info('📢 Checking events for broadcast:', {
+        totalEvents: result.events.length,
+        events: result.events.map(e => ({
+          success: e.success,
+          hasOrder: !!e.order,
+          orderId: e.order?.id
+        }))
+      });
+
       for (const eventResult of result.events) {
         if (eventResult.success && eventResult.order) {
+          logger.info('📢 Broadcasting new order to admin clients:', {
+            orderId: eventResult.order.id
+          });
           AdminWebSocketService.broadcastNewOrder(eventResult.order);
+        } else {
+          logger.warn('⚠️ Event not broadcasted:', {
+            success: eventResult.success,
+            hasOrder: !!eventResult.order,
+            error: eventResult.error
+          });
         }
       }
 

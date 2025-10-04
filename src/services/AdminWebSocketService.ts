@@ -216,13 +216,20 @@ export class AdminWebSocketService {
    * Broadcasts new order notification
    */
   static broadcastNewOrder(order: any): void {
+    logger.info('📢 broadcastNewOrder called:', {
+      orderId: order?.id,
+      activeConnections: this.connections.size
+    });
+
     const message: AdminWSMessage = {
       type: 'new-order',
-      data: order,
+      data: { order },
       timestamp: new Date().toISOString()
     };
 
     this.broadcastToAdmins(message);
+
+    logger.info('✅ Broadcast completed');
   }
 
   /**
