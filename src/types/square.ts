@@ -215,7 +215,7 @@ export interface SquareServiceStats {
  */
 export interface OrderProcessingResult {
   success: boolean;
-  order: FormattedOrder | undefined;
+  order: SquareOrder | undefined;
   error: string | undefined;
   eventType: SquareWebhookEventType | undefined;
 }
