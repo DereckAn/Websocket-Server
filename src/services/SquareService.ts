@@ -69,8 +69,17 @@ export class SquareService {
   static verifyWebhookSignature(request: WebhookRequest): WebhookVerification {
     const signatureKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
 
+    logger.info('🔐 Verifying webhook signature:', {
+      hasSignatureKey: !!signatureKey,
+      signatureKeyLength: signatureKey?.length,
+      webhookUrl: request.webhookUrl,
+      bodyLength: request.body.length,
+      receivedSignature: request.signature?.substring(0, 20) + '...'
+    });
+
     if (!signatureKey) {
       this.stats.errors.webhookVerificationErrors++;
+      logger.error('❌ SQUARE_WEBHOOK_SIGNATURE_KEY not configured in environment');
       return {
         isValid: false,
         signature: undefined,
@@ -87,8 +96,21 @@ export class SquareService {
 
       const isValid = expectedSignature === request.signature;
 
+      logger.info('🔐 Signature verification result:', {
+        isValid,
+        receivedSignature: request.signature?.substring(0, 20) + '...',
+        expectedSignature: expectedSignature.substring(0, 20) + '...',
+        stringToSignLength: stringToSign.length
+      });
+
       if (!isValid) {
         this.stats.errors.webhookVerificationErrors++;
+        logger.error('❌ Signature mismatch:', {
+          received: request.signature,
+          expected: expectedSignature,
+          webhookUrl: request.webhookUrl,
+          bodyPreview: request.body.substring(0, 100)
+        });
       }
 
       return {

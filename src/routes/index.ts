@@ -115,12 +115,15 @@ export class Routes {
       }
 
       // Try Square admin WebSocket routes
-      if (path === "/admin") {
+      if (path === "/admin" || path === "/admin/ws") {
+        logger.info(`✅ Routing to Square admin WebSocket: ${path}`);
         return SquareRoutes.handleWebSocketUpgrade(request, server, url);
       }
 
       // WebSocket route not found
-      logger.warn(`⚠️ Unknown WebSocket route: ${path}`);
+      logger.warn(`⚠️ Unknown WebSocket route: ${path}`, {
+        availableRoutes: ['/ws/gomoku/:roomId', '/admin', '/admin/ws']
+      });
       return new Response("WebSocket route not found", { status: 404 });
     } catch (error) {
       logger.error("❌ WebSocket upgrade error:", error);
