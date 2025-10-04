@@ -125,7 +125,7 @@ try {
         // Determine WebSocket type by the data passed during upgrade
         const wsType = (ws as any).data?.wsType;
 
-        logger.info('🔌 WebSocket opened:', { wsType });
+        logger.debug('🔌 WebSocket opened:', { wsType });
 
         if (wsType === 'admin') {
           SquareController.handleAdminWebSocketOpen(ws);
@@ -162,7 +162,7 @@ try {
       try {
         const wsType = (ws as any).data?.wsType || 'gomoku';
 
-        logger.info('🔌 WebSocket closed:', { wsType });
+        logger.debug('🔌 WebSocket closed:', { wsType });
 
         if (wsType === 'admin') {
           SquareController.handleAdminWebSocketClose(ws);

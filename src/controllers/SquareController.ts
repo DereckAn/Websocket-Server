@@ -98,7 +98,7 @@ export class SquareController {
       }
 
       // Broadcast successful orders to admin clients
-      logger.info('📢 Checking events for broadcast:', {
+      logger.debug('📢 Checking events for broadcast:', {
         totalEvents: result.events.length,
         events: result.events.map(e => ({
           success: e.success,
@@ -109,7 +109,7 @@ export class SquareController {
 
       for (const eventResult of result.events) {
         if (eventResult.success && eventResult.order) {
-          logger.info('📢 Broadcasting new order to admin clients:', {
+          logger.info('📢 Broadcasting order to admin clients:', {
             orderId: eventResult.order.id
           });
           AdminWebSocketService.broadcastNewOrder(eventResult.order);

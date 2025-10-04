@@ -52,7 +52,7 @@ export class SquareService {
   static verifyWebhookSignature(request: WebhookRequest): WebhookVerification {
     const signatureKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
 
-    logger.info('🔐 Verifying webhook signature:', {
+    logger.debug('🔐 Verifying webhook signature:', {
       hasSignatureKey: !!signatureKey,
       signatureKeyLength: signatureKey?.length,
       webhookUrl: request.webhookUrl,
@@ -79,7 +79,7 @@ export class SquareService {
 
       const isValid = expectedSignature === request.signature;
 
-      logger.info('🔐 Signature verification result:', {
+      logger.debug('🔐 Signature verification result:', {
         isValid,
         receivedSignature: request.signature?.substring(0, 20) + '...',
         expectedSignature: expectedSignature.substring(0, 20) + '...',
@@ -88,16 +88,9 @@ export class SquareService {
 
       if (!isValid) {
         this.stats.errors.webhookVerificationErrors++;
-        logger.error('❌ Signature mismatch - FULL DETAILS:', {
-          received: request.signature,
-          expected: expectedSignature,
+        logger.error('❌ Signature mismatch:', {
           webhookUrl: request.webhookUrl,
-          webhookUrlLength: request.webhookUrl.length,
-          bodyLength: request.body.length,
-          bodyFirst200: request.body.substring(0, 200),
-          stringToSignFirst200: stringToSign.substring(0, 200),
-          signatureKeyLength: signatureKey.length,
-          signatureKeyFirst10: signatureKey.substring(0, 10) + '...'
+          bodyPreview: request.body.substring(0, 100)
         });
       }
 
@@ -192,7 +185,7 @@ export class SquareService {
         };
       }
 
-      logger.info(`🔍 Fetching full order details from Square API: ${orderId}`);
+      logger.debug(`🔍 Fetching full order details from Square API: ${orderId}`);
 
       // Fetch full order from Square API
       const order = await this.getOrderById(orderId);
@@ -207,7 +200,7 @@ export class SquareService {
         };
       }
 
-      logger.info(`✅ Order fetched from Square API: ${orderId}`);
+      logger.debug(`✅ Order fetched from Square API: ${orderId}`);
 
       // Validate order
       const validation = OrderModel.validateOrder(order);
@@ -259,7 +252,7 @@ export class SquareService {
     }
 
     try {
-      logger.info(`🔍 Fetching order from Square API: ${orderId}`);
+      logger.debug(`🔍 Fetching order from Square API: ${orderId}`);
 
       const response = await squareClient.orders.get({orderId});
 
@@ -268,7 +261,7 @@ export class SquareService {
         return null;
       }
 
-      logger.info(`✅ Order retrieved from Square API: ${orderId}`);
+      logger.debug(`✅ Order retrieved from Square API: ${orderId}`);
       return response.order as SquareOrder;
 
     } catch (error) {

@@ -216,7 +216,7 @@ export class AdminWebSocketService {
    * Broadcasts new order notification
    */
   static broadcastNewOrder(order: any): void {
-    logger.info('📢 broadcastNewOrder called:', {
+    logger.debug('📢 broadcastNewOrder called:', {
       orderId: order?.id,
       activeConnections: this.connections.size
     });
@@ -229,7 +229,7 @@ export class AdminWebSocketService {
 
     this.broadcastToAdmins(message);
 
-    logger.info('✅ Broadcast completed');
+    logger.debug('✅ Broadcast completed');
   }
 
   /**

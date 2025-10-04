@@ -116,7 +116,7 @@ export class Routes {
 
       // Try Square admin WebSocket routes
       if (path === "/admin" || path === "/admin/ws") {
-        logger.info(`✅ Routing to Square admin WebSocket: ${path}`);
+        logger.debug(`✅ Routing to Square admin WebSocket: ${path}`);
         return SquareRoutes.handleWebSocketUpgrade(request, server, url);
       }
 

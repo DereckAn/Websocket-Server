@@ -88,16 +88,16 @@ export class SquareRoutes {
   ): Response | undefined {
     const path = url.pathname;
 
-    logger.info('🔌 Square WebSocket upgrade attempt:', { path });
+    logger.debug('🔌 Square WebSocket upgrade attempt:', { path });
 
     // Check if this is an admin WebSocket route
     // WS /admin or /admin/ws
     if (path === '/admin' || path === '/admin/ws') {
-      logger.info('✅ Attempting to upgrade admin WebSocket connection');
+      logger.debug('✅ Attempting to upgrade admin WebSocket connection');
 
       // Mark this as admin WebSocket for the main handler
       if (server.upgrade(request, { data: { wsType: 'admin' } })) {
-        logger.info('✅ Admin WebSocket upgrade successful');
+        logger.debug('✅ Admin WebSocket upgrade successful');
         return undefined; // Successful upgrade
       } else {
         logger.error('❌ Admin WebSocket upgrade failed');
