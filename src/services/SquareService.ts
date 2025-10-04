@@ -220,10 +220,13 @@ export class SquareService {
 
       logger.info(`✅ Order processed successfully: ${order.id} (${order.state})`);
 
+      // Serialize order to handle BigInt and other non-JSON types
+      const serializedOrder = OrderModel.handleBigIntSerialization(order);
+
       // Return raw Square order for frontend transformation
       return {
         success: true,
-        order: order,
+        order: serializedOrder,
         eventType: event.type,
         error: undefined
       };
