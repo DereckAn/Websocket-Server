@@ -214,18 +214,16 @@ export class SquareService {
         };
       }
 
-      // Format order for display
-      const formattedOrder = OrderModel.formatOrderForDisplay(order);
-
       // Update statistics
       this.stats.ordersProcessed++;
       this.stats.lastOrderAt = new Date().toISOString();
 
-      logger.info(`✅ Order processed successfully: ${formattedOrder.id} (${formattedOrder.state})`);
+      logger.info(`✅ Order processed successfully: ${order.id} (${order.state})`);
 
+      // Return raw Square order for frontend transformation
       return {
         success: true,
-        order: formattedOrder,
+        order: order,
         eventType: event.type,
         error: undefined
       };

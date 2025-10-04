@@ -34,7 +34,7 @@ export class SquareController {
       const signature = request.headers.get('x-square-hmacsha256-signature');
       const body = await request.text();
 
-      logger.info('📥 Square webhook received');
+      logger.debug('📥 Square webhook received');
 
       // Parse webhook body
       let parsedBody;

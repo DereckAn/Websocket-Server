@@ -156,11 +156,11 @@ export class AdminWebSocketService {
     const connectedClients = this.connections.size;
 
     if (connectedClients === 0) {
-      logger.info('📭 No admin clients connected for broadcast');
+      logger.debug('📭 No admin clients connected for broadcast');
       return;
     }
 
-    logger.info(`📢 Broadcasting to ${connectedClients} admin clients: ${message.type}`);
+    logger.debug(`📢 Broadcasting to ${connectedClients} admin clients: ${message.type}`);
 
     let successCount = 0;
     let failureCount = 0;
@@ -187,7 +187,7 @@ export class AdminWebSocketService {
       SquareService.updateAdminConnectionCount(this.connections.size);
     }
 
-    logger.info(`✅ Broadcast complete: ${successCount} successful, ${failureCount} failed`);
+    logger.debug(`✅ Broadcast complete: ${successCount} successful, ${failureCount} failed`);
   }
 
   /**
