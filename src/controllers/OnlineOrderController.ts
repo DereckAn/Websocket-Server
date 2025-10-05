@@ -2,10 +2,10 @@
 // ONLINE ORDER CONTROLLER - HTTP handlers for online orders
 // =================================================================
 
-import { AdminWebSocketService } from "@/services/AdminWebSocketService";
-import { OnlineOrderService } from "@/services/OnlineOrderService";
-import { logger } from "@/utils/logger";
-import ResponseView from "@/views/ResponseView";
+import { AdminWebSocketService } from "../services/AdminWebSocketService";
+import { OnlineOrderService } from "../services/OnlineOrderService";
+import { logger } from "../utils/logger";
+import ResponseView from "../views/ResponseView";
 
 /**
  * OnlineOrderController - Handles HTTP requests for online orders

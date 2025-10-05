@@ -2,10 +2,10 @@
 // ONLINE ORDER SERVICE - Business logic for online order processing
 // =================================================================
 
-import squareClient from "@/config/square-client";
-import { supabase } from "@/config/supabase-client";
-import { OnlineOrderModel } from "@/models/OnlineOrderModel";
-import { logger } from "@/utils/logger";
+import squareClient from "../config/square-client";
+import { supabase } from "../config/supabase-client";
+import { OnlineOrderModel } from "../models/OnlineOrderModel";
+import { logger } from "../utils/logger";
 // import { v4 as uuidv4 } from "uuid";
 
 interface OrderResult {
