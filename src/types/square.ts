@@ -170,6 +170,7 @@ export type AdminWSMessageType =
   | 'pong'
   | 'error'
   | 'admin-connect'
+  | 'new-online-order'
   | 'stats';
 
 /**

@@ -20,6 +20,10 @@ export interface EnvConfig {
   // Rate Limiting
   MAX_GAME_CREATIONS_PER_MINUTE: number;
   MAX_MOVES_PER_MINUTE: number;
+
+  // Supabase
+  SUPABASE_URL?: string;
+  SUPABASE_SERVICE_ROLE_KEY?: string;
 }
 
 /**
@@ -91,6 +95,16 @@ function loadEnvConfig(): EnvConfig {
     throw new Error("Invalid environment configuration");
   }
 
+  // Supabase configuration (optional)
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    console.warn(
+      "⚠️  WARNING: Missing Supabase environment variables. Supabase client will not be initialized."
+    );
+  }
+
   const config: EnvConfig = {
     NODE_ENV: nodeEnv,
     PORT: getNumber("PORT", 3000),
@@ -109,6 +123,10 @@ function loadEnvConfig(): EnvConfig {
       5
     ),
     MAX_MOVES_PER_MINUTE: getNumber("MAX_MOVES_PER_MINUTE", 60),
+
+    // Supabase (conditionally add only if defined)
+    ...(supabaseUrl && { SUPABASE_URL: supabaseUrl }),
+    ...(supabaseKey && { SUPABASE_SERVICE_ROLE_KEY: supabaseKey }),
   };
 
   // Log configuration in development (using console to avoid circular dependency)
@@ -118,6 +136,7 @@ function loadEnvConfig(): EnvConfig {
       port: config.PORT,
       logLevel: config.LOG_LEVEL,
       allowedOrigins: config.ALLOWED_ORIGINS,
+      hasSupabase: !!(supabaseUrl && supabaseKey),
     });
   }
 

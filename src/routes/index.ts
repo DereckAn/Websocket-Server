@@ -1,5 +1,5 @@
 // =================================================================
-import { logger } from '../utils/logger';
+import { logger } from "../utils/logger";
 // ROUTES INDEX - Central route dispatcher
 // =================================================================
 
@@ -8,6 +8,7 @@ import { addRateLimitHeaders } from "../middleware/rateLimit";
 import ResponseView from "../views/ResponseView";
 import AdminRoutes from "./adminRoutes";
 import GomokuRoutes from "./gomokuRoutes";
+import OnlineOrderRoutes from "./onlineOrderRoutes";
 import SquareRoutes from "./squareRoutes";
 
 /**
@@ -56,6 +57,11 @@ export class Routes {
           path === "/test")
       ) {
         response = await SquareRoutes.handleRequest(request, url);
+      }
+
+      // Try Online Order routes
+      if (!response && path.startsWith("/api/orders/")) {
+        response = await OnlineOrderRoutes.handleRequest(request, url);
       }
 
       // Health check endpoint (simple, no auth needed)
@@ -122,7 +128,7 @@ export class Routes {
 
       // WebSocket route not found
       logger.warn(`⚠️ Unknown WebSocket route: ${path}`, {
-        availableRoutes: ['/ws/gomoku/:roomId', '/admin', '/admin/ws']
+        availableRoutes: ["/ws/gomoku/:roomId", "/admin", "/admin/ws"],
       });
       return new Response("WebSocket route not found", { status: 404 });
     } catch (error) {
