@@ -103,16 +103,34 @@ export class SquareController {
         events: result.events.map(e => ({
           success: e.success,
           hasOrder: !!e.order,
-          orderId: e.order?.id
+          orderId: e.order?.id,
+          eventType: e.eventType
         }))
       });
 
       for (const eventResult of result.events) {
         if (eventResult.success && eventResult.order) {
-          logger.info('📢 Broadcasting order to admin clients:', {
-            orderId: eventResult.order.id
-          });
-          AdminWebSocketService.broadcastNewOrder(eventResult.order);
+          const eventType = eventResult.eventType || '';
+
+          // Differentiate between order.created and order.updated
+          if (eventType.includes('order.created')) {
+            logger.info('📢 Broadcasting NEW order to admin clients:', {
+              orderId: eventResult.order.id
+            });
+            AdminWebSocketService.broadcastNewOrder(eventResult.order);
+          } else if (eventType.includes('order.updated')) {
+            logger.info('📢 Broadcasting UPDATED order to admin clients:', {
+              orderId: eventResult.order.id
+            });
+            AdminWebSocketService.broadcastOrderUpdate(eventResult.order);
+          } else {
+            // Fallback: treat unknown events as new orders
+            logger.info('📢 Broadcasting order (unknown type) to admin clients:', {
+              orderId: eventResult.order.id,
+              eventType
+            });
+            AdminWebSocketService.broadcastNewOrder(eventResult.order);
+          }
         } else {
           logger.warn('⚠️ Event not broadcasted:', {
             success: eventResult.success,

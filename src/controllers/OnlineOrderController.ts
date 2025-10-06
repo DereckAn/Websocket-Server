@@ -86,6 +86,72 @@ export class OnlineOrderController {
     }
   }
 
+  static async handleUpdateOrderStatus(req: Request): Promise<Response> {
+    try {
+      const url = new URL(req.url);
+      const orderId = url.pathname.split("/")[3]; // /api/orders/:id/status
+
+      if (!orderId) return ResponseView.badRequest("Missing order ID in URL");
+
+      // Parse request body
+      let data: any;
+      try {
+        data = await req.json();
+      } catch (parseError) {
+        logger.warn("Invalid JSON in request body", { error: parseError });
+        return ResponseView.badRequest("Invalid JSON in request body");
+      }
+
+      const { fulfillmentState } = data;
+      if (!fulfillmentState)
+        return ResponseView.badRequest("Missing fulfillmentState in body");
+
+      // Validate State
+      const validStates = [
+        "PROPOSED",
+        "RESERVED",
+        "PREPARED",
+        "COMPLETED",
+        "CANCELED",
+        "FAILED",
+      ];
+      if (!validStates.includes(fulfillmentState)) {
+        return ResponseView.badRequest("Invalid fulfillmentState value");
+      }
+
+      logger.info("Updating order status", {
+        orderId,
+        newState: fulfillmentState,
+      });
+
+      // Call service
+      const result = await OnlineOrderService.updateOrderStatus(
+        orderId,
+        fulfillmentState
+      );
+
+      if (!result.success) {
+        logger.warn("Failed to update order status", { error: result.error });
+        return ResponseView.badRequest(
+          result.error || "Failed to update order status"
+        );
+      }
+
+      logger.info("Order status updated successfully", { orderId });
+
+      return ResponseView.success(
+        {
+          orderId,
+          newState: fulfillmentState,
+        },
+        "Order status updated successfully"
+      );
+    } catch (error) {
+      logger.error("Unexpected error in handleUpdateOrderStatus", { error });
+      return ResponseView.internalServerError("Unexpected error");
+    }
+  }
+
   /**
    * Gets request information for logging
    */

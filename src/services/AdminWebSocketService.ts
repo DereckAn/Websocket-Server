@@ -248,13 +248,20 @@ export class AdminWebSocketService {
    * Broadcasts order update notification
    */
   static broadcastOrderUpdate(order: any): void {
+    logger.debug("📢 broadcastOrderUpdate called:", {
+      orderId: order?.id,
+      activeConnections: this.connections.size,
+    });
+
     const message: AdminWSMessage = {
       type: "order-updated",
-      data: order,
+      data: { order },
       timestamp: new Date().toISOString(),
     };
 
     this.broadcastToAdmins(message);
+
+    logger.debug("✅ Order update broadcast completed");
   }
 
   /**

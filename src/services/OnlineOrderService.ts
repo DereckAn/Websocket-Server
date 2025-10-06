@@ -188,6 +188,217 @@ export class OnlineOrderService {
     }
   }
 
+  static async updateOrderStatus(
+    orderId: string,
+    fulfillmentState: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      logger.info(
+        `Updating order ${orderId} status to 
+  ${fulfillmentState}...`,
+        {
+          orderId,
+          fulfillmentState,
+        }
+      );
+
+      // 1. Obtener datos de Supabase (rápido)
+      const { data: order, error: fetchError } = await supabase
+        .from("Order")
+        .select("squareOrderId, fulfillmentUid, squareVersion")
+        .eq("id", orderId)
+        .single();
+
+      if (fetchError || !order?.squareOrderId) {
+        logger.error("Order not found in Supabase", {
+          orderId,
+          error: fetchError,
+        });
+        return { success: false, error: "Order not found" };
+      }
+
+      // 2. Si falta fulfillmentUid o version, consultar Square
+      let fulfillmentUid = order.fulfillmentUid;
+      let version = order.squareVersion;
+
+      if (!fulfillmentUid || !version) {
+        logger.info("Missing data in Supabase, fetching from Square", {
+          orderId,
+          squareOrderId: order.squareOrderId,
+        });
+
+        const { order: squareOrder } = await squareClient.orders.get({
+          orderId: order.squareOrderId,
+        });
+
+        fulfillmentUid = squareOrder?.fulfillments?.[0]?.uid;
+        version = squareOrder?.version;
+
+        if (!fulfillmentUid || !version) {
+          logger.error("Missing fulfillment data from Square", { orderId });
+          return { success: false, error: "Missing fulfillment data" };
+        }
+
+        logger.info("Retrieved missing data from Square", {
+          orderId,
+          fulfillmentUid,
+          version,
+        });
+      }
+
+      // 3. Intentar actualizar con versión de Supabase
+      try {
+        logger.info("Attempting to update order in Square", {
+          squareOrderId: order.squareOrderId,
+          fulfillmentUid,
+          version,
+        });
+
+        const response = await squareClient.orders.update({
+          orderId: order.squareOrderId,
+          order: {
+            version: version,
+            fulfillments: [
+              {
+                uid: fulfillmentUid,
+                state: fulfillmentState as any,
+              },
+            ],
+            locationId: "LWYT37RKZNR7Y",
+          },
+        });
+
+        if (!response.order) {
+          logger.error("Square API returned no order", { response });
+          return { success: false, error: "Failed to update order in  Square" };
+        }
+
+        logger.info("Order updated in Square successfully", {
+          orderId,
+          newVersion: response.order.version,
+        });
+
+        // 4. Actualizar versión en Supabase
+        const { error: updateError } = await supabase
+          .from("Order")
+          .update({
+            squareVersion: response.order.version,
+            fulfillmentUid: fulfillmentUid, // Por si faltaba
+            orderStatus: this.mapSquareStateToOrderStatus(fulfillmentState),
+          })
+          .eq("id", orderId);
+
+        if (updateError) {
+          logger.warn("Failed to update version in Supabase", {
+            orderId,
+            error: updateError,
+          });
+          // No retornar error, Square ya se actualizó
+        }
+
+        return { success: true };
+      } catch (updateError: any) {
+        // 5. Si falla por versión incorrecta, reintentar con versión  actual
+        if (
+          updateError.errors?.some(
+            (e: any) =>
+              e.code === "CONFLICT" ||
+              e.code === "VERSION_MISMATCH" ||
+              e.category === "INVALID_REQUEST_ERROR"
+          )
+        ) {
+          logger.warn(
+            "Version conflict detected, fetching current  version from Square",
+            {
+              orderId,
+              error: updateError.errors,
+            }
+          );
+
+          // Obtener versión actual de Square
+          const { order: currentOrder } = await squareClient.orders.get({
+            orderId: order.squareOrderId,
+          });
+
+          if (!currentOrder || !currentOrder.version) {
+            logger.error("Failed to retrieve current order from Square", {
+              orderId,
+            });
+            return {
+              success: false,
+              error: "Failed to retrieve order from Square",
+            };
+          }
+
+          logger.info("Retrying update with current version from Square", {
+            orderId,
+            currentVersion: currentOrder.version,
+          });
+
+          // Reintentar con versión correcta
+          const retryResponse = await squareClient.orders.update({
+            orderId: order.squareOrderId,
+            order: {
+              version: currentOrder.version,
+              fulfillments: [
+                {
+                  uid: currentOrder.fulfillments?.[0]?.uid ?? null,
+                  state: fulfillmentState as any,
+                },
+              ],
+              locationId: "LWYT37RKZNR7Y",
+            },
+          });
+
+          if (!retryResponse.order) {
+            logger.error("Retry failed - Square API returned no order");
+            return {
+              success: false,
+              error: "Failed to update order after retry",
+            };
+          }
+
+          logger.info("Order updated successfully after retry", {
+            orderId,
+            newVersion: retryResponse.order.version,
+          });
+
+          // Actualizar Supabase con datos correctos
+          await supabase
+            .from("Order")
+            .update({
+              squareVersion: retryResponse.order.version,
+              fulfillmentUid: currentOrder.fulfillments?.[0]?.uid,
+              orderStatus: this.mapSquareStateToOrderStatus(fulfillmentState),
+            })
+            .eq("id", orderId);
+
+          return { success: true };
+        }
+
+        // Si es otro error, lanzarlo
+        throw updateError;
+      }
+    } catch (error) {
+      logger.error("Unexpected error in updateOrderStatus", {
+        error,
+        orderId,
+        fulfillmentState,
+      });
+      return { success: false, error: "Unexpected error occurred" };
+    }
+  }
+
+  private static mapSquareStateToOrderStatus(state: string): string {
+    const stateMap: Record<string, string> = {
+      PROPOSED: "Created",
+      PREPARED: "Preparing",
+      COMPLETED: "Ready",
+      CANCELED: "Canceled",
+    };
+    return stateMap[state] || "Created";
+  }
+
   static getStats(): {
     serviceName: string;
     status: string;

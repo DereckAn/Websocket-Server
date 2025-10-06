@@ -2,6 +2,8 @@
 // ONLINE ORDER MODEL - Pure business logic for online orders
 // =================================================================
 
+import { createId } from "@paralleldrive/cuid2";
+
 /**
  * OnlineOrderModel - Pure functions for online order processing
  *
@@ -24,22 +26,19 @@ export class OnlineOrderModel {
     } else {
       if (!orderData.userInfo.name) errors.push("Missing userInfo.name");
       if (!orderData.userInfo.email) errors.push("Missing userInfo.email");
-      if (!orderData.userInfo.address) errors.push("Missing userInfo.address");
+      //   if (!orderData.userInfo.address) errors.push("Missing userInfo.address");
     }
 
-    if (
-      !orderData.validatedTicket?.items ||
-      orderData.validatedTicket.items.length === 0
-    ) {
+    if (!orderData.cartItems?.length || orderData.cartItems.length === 0) {
       errors.push("No items in the order");
     }
 
     //validate totals
     if (
-      !orderData.validatedTicket?.totals ||
-      orderData.validatedTicket.totals.length <= 0
+      !orderData.validatedTicket?.total ||
+      orderData.validatedTicket.total <= 0
     ) {
-      errors.push("Missing validatedTicket.totals");
+      errors.push("Missing validatedTicket.total");
     }
 
     return {
@@ -88,7 +87,7 @@ export class OnlineOrderModel {
                 pickupDetails: {
                   recipient: {
                     customerId: orderData.userInfo.squareCustomerId,
-                    displayName: `${orderData.userInfo.name}   ${orderData.userInfo.lastname}`,
+                    displayName: `${orderData.userInfo.name} ${orderData.userInfo.lastname}`,
                     emailAddress: orderData.userInfo.email,
                     phoneNumber: orderData.userInfo.phone,
                   },
@@ -120,7 +119,7 @@ export class OnlineOrderModel {
         },
       ],
       state: "OPEN",
-      ticketName: `${orderData.userInfo.name}'s Online Order`,
+      ticketName: `Online - ${orderData.userInfo.name}'s Online Order`,
     };
   }
 
@@ -139,9 +138,12 @@ export class OnlineOrderModel {
         ).toISOString();
 
     return {
+      id: createId(),
       idempotencyKey: idempotencyKey,
       userId: orderData.userInfo.id || null,
       squareOrderId: squareOrder.id,
+      fulfillmentUid: squareOrder.fulfillments?.[0]?.uid, 
+      squareVersion: squareOrder.version, 
       totalPrice: orderData.validatedTicket.subtotal / 100,
       taxes: orderData.validatedTicket.taxes / 100,
       totalPrecioWithTaxes: orderData.validatedTicket.total / 100,
@@ -168,6 +170,7 @@ export class OnlineOrderModel {
    */
   static formatOrderItemsForDatabase(orderData: any, orderId: string): any[] {
     return orderData.cartItems.map((item: any) => ({
+      id: createId(),
       orderId: orderId,
       itemId: item.id,
       itemName: item.name,
@@ -189,6 +192,7 @@ export class OnlineOrderModel {
     }
 
     return item.selectedModifiers.map((mod: any) => ({
+      id: createId(),
       orderItemId: orderItemId,
       name: mod.name,
       price: Math.round(mod.price * 100), // Convert to cents

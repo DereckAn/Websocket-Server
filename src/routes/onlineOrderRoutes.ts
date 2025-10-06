@@ -37,6 +37,9 @@ export class OnlineOrderRoutes {
         case method === "POST" && path === "/api/orders/create":
           return await this.handleCreateOrder(request);
 
+        case method === "PATCH" && !!path.match(/\/api\/orders\/[^/]+\/status$/):
+          return await this.handleUpdateStatus(request, path);
+
         // No match
         default:
           return null; // Let other route handlers try
@@ -69,6 +72,17 @@ export class OnlineOrderRoutes {
         "Failed to process create order request"
       );
     }
+  }
+
+  private static async handleUpdateStatus(
+    request: Request,
+    path: string
+  ): Promise<Response> {
+    // Apply rate limiting
+    const rateLimitResult = rateLimitMiddleware(request);
+    if (rateLimitResult) rateLimitResult;
+
+    return await OnlineOrderController.handleUpdateOrderStatus(request);
   }
 
   /**
