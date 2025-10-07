@@ -75,8 +75,9 @@ function loadEnvConfig(): EnvConfig {
   const allowedOrigins = (
     process.env.ALLOWED_ORIGINS ||
     process.env.CORS_ORIGIN ||
-    "http://localhost:3001"
-  )
+    "http://localhost:3001" ||
+    "http://localhost:3000"
+  )  
     .split(",")
     .map((origin) => origin.trim());
 

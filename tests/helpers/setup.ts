@@ -8,7 +8,7 @@ import { beforeAll, afterAll } from 'bun:test';
 beforeAll(() => {
   // Set test environment variables
   process.env.NODE_ENV = 'test';
-  process.env.WEBHOOK_PORT = '3001';
+  process.env.PORT = '3003';
   process.env.LOG_LEVEL = 'error';
 
   console.log('🧪 Test environment initialized');

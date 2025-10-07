@@ -180,10 +180,15 @@ export class OnlineOrderService {
         order: adminOrder,
       };
     } catch (error) {
-      logger.error("Unexpected error in createOnlineOrder", { error });
+      logger.error("Unexpected error in createOnlineOrder", {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        errorType: error?.constructor?.name,
+        fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
+      });
       return {
         success: false,
-        error: "Unexpected error occurred",
+        error: error instanceof Error ? error.message : "Unexpected error occurred",
       };
     }
   }
@@ -381,11 +386,14 @@ export class OnlineOrderService {
       }
     } catch (error) {
       logger.error("Unexpected error in updateOrderStatus", {
-        error,
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        errorType: error?.constructor?.name,
+        fullError: JSON.stringify(error, Object.getOwnPropertyNames(error)),
         orderId,
         fulfillmentState,
       });
-      return { success: false, error: "Unexpected error occurred" };
+      return { success: false, error: error instanceof Error ? error.message : "Unexpected error occurred" };
     }
   }
 

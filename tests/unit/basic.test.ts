@@ -53,7 +53,7 @@ describe('Basic Functionality Tests', () => {
     });
 
     it('should have test port configured', () => {
-      expect(process.env.WEBHOOK_PORT).toBe('3001');
+      expect(process.env.PORT).toBe('3003');
     });
 
     it('should have error log level', () => {

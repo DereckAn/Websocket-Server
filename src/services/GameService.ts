@@ -19,6 +19,7 @@ import GameModel from '../models/GameModel';
 import PlayerModel from '../models/PlayerModel';
 import RoomModel from '../models/RoomModel';
 import { logger } from '../utils/logger';
+import { env } from '../config/env';
 
 /**
  * GameService - Central orchestrator for all game operations
@@ -74,8 +75,8 @@ export class GameService {
       this.playerRoomMap.set(humanPlayer.id, room.id);
       this.playerRoomMap.set(aiPlayer.id, room.id);
 
-      // Build WebSocket endpoint
-      const wsEndpoint = `ws://localhost:${process.env.WEBHOOK_PORT || 3000}/ws/gomoku/${room.id}`;
+      // Build WebSocket endpoint"      const wsEndpoint = `ws://localhost:${process.env.WEBHOOK_PORT || 3000}/ws/gomoku/${room.id}`;
+      const wsEndpoint = `ws://localhost:${env.PORT}/ws/gomoku/${room.id}`;
 
       logger.game('Quick start game created', room.id, {
         humanSymbol: humanPlayer.symbol,

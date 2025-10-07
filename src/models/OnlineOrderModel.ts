@@ -51,11 +51,10 @@ export class OnlineOrderModel {
    * Formats order data for Square API request
    */
   static formatOrderForSquare(orderData: any): any {
+    // Mucho más simple ahora
     const handoffTime = orderData.handoffDetails.isAsap
-      ? new Date(Date.now() + 15 * 60000).toISOString() // ASAP = 15 min from now
-      : new Date(
-          `${orderData.handoffDetails.date} ${orderData.handoffDetails.time}`
-        ).toISOString();
+      ? new Date(Date.now() + 15 * 60000).toISOString()
+      : orderData.handoffDetails.scheduledTime; // ✅ Ya es ISO!
 
     return {
       locationId: "LWYT37RKZNR7Y",
@@ -80,7 +79,7 @@ export class OnlineOrderModel {
       fulfillments: [
         {
           type:
-            orderData.handoffDetails.type === "pickup" ? "PICKUP" : "SHIPMENT",
+            orderData.handoffDetails.type === "pickup" ? "PICKUP" : "SHIPMENT", // ✅ Ahora coincide
           state: "PROPOSED",
           ...(orderData.handoffDetails.type === "pickup"
             ? {
@@ -131,25 +130,24 @@ export class OnlineOrderModel {
     squareOrder: any,
     idempotencyKey: string
   ): any {
+    // ✅ Usar scheduledTime directamente (ya es ISO)
     const handoffTime = orderData.handoffDetails.isAsap
       ? new Date(Date.now() + 15 * 60000).toISOString()
-      : new Date(
-          `${orderData.handoffDetails.date} ${orderData.handoffDetails.time}`
-        ).toISOString();
+      : orderData.handoffDetails.scheduledTime; // ✅ Ya es ISO!
 
     return {
       id: createId(),
       idempotencyKey: idempotencyKey,
       userId: orderData.userInfo.id || null,
       squareOrderId: squareOrder.id,
-      fulfillmentUid: squareOrder.fulfillments?.[0]?.uid, 
-      squareVersion: squareOrder.version, 
+      fulfillmentUid: squareOrder.fulfillments?.[0]?.uid,
+      squareVersion: squareOrder.version,
       totalPrice: orderData.validatedTicket.subtotal / 100,
       taxes: orderData.validatedTicket.taxes / 100,
       totalPrecioWithTaxes: orderData.validatedTicket.total / 100,
       handoffOption: orderData.handoffDetails.type,
       handoffAddress:
-        orderData.handoffDetails.type === "delivery"
+        orderData.handoffDetails.type === "shipment" // ✅ Cambiado de "delivery"
           ? `${orderData.handoffDetails.address?.street}, ${orderData.handoffDetails.address?.city}, ${orderData.handoffDetails.address?.state} ${orderData.handoffDetails.address?.zipCode}`
           : null,
       orderStatus: "Created",
