@@ -72,22 +72,20 @@ function loadEnvConfig(): EnvConfig {
     );
   }
 
-  // Parse ALLOWED_ORIGINS with proper fallback logic
-  const allowedOriginsRaw = process.env.ALLOWED_ORIGINS || process.env.CORS_ORIGIN || "";
+  const allowedOrigins = (
+    process.env.ALLOWED_ORIGINS ||
+    process.env.CORS_ORIGIN ||
+    "http://localhost:3001" ||
+    "http://localhost:3000"
+  )
+    .split(",")
+    .map((origin) => origin.trim());
 
-  const allowedOrigins = allowedOriginsRaw
-    ? allowedOriginsRaw.split(",").map((origin) => origin.trim()).filter(o => o.length > 0)
-    : nodeEnv === "production"
-      ? [] // No defaults in production - must be explicitly set
-      : ["http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:3000", "http://127.0.0.1:3001"];
-
-  // Warn about CORS configuration issues
-  if (nodeEnv === "production" && allowedOrigins.length === 0) {
-    console.error("❌ ERROR: No ALLOWED_ORIGINS set in production! All CORS requests will be blocked.");
-    console.error("   Set ALLOWED_ORIGINS environment variable with comma-separated origins.");
-  }
-
-  if (nodeEnv === "production" && allowedOrigins.some((origin) => origin.includes("localhost"))) {
+  // Warn if using default origins in production
+  if (
+    nodeEnv === "production" &&
+    allowedOrigins.some((origin) => origin.includes("localhost"))
+  ) {
     console.warn("⚠️  WARNING: Using localhost origins in production mode!");
   }
 
