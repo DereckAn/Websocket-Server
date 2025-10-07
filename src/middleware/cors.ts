@@ -104,9 +104,15 @@ export const createCorsHeaders = (origin?: string | null): Record<string, string
  */
 export const handleCorsPrelight = (request: Request): Response => {
   const origin = request.headers.get('origin');
+  const isAllowed = isOriginAllowed(origin);
   const headers = createCorsHeaders(origin);
 
-  logger.debug(`CORS preflight from origin: ${origin || 'none'}`);
+  logger.info(`🔀 CORS preflight from origin: ${origin || 'none'} - ${isAllowed ? '✅ ALLOWED' : '❌ BLOCKED'}`, {
+    origin,
+    isAllowed,
+    allowedOrigins: getAllowedOrigins(),
+    headers: Object.keys(headers)
+  });
 
   return new Response(null, {
     status: 200,
@@ -131,6 +137,7 @@ export const addCorsHeaders = (response: Response, request: Request): Response =
   }
 
   const origin = request.headers.get('origin');
+  const isAllowed = isOriginAllowed(origin);
   const corsHeaders = createCorsHeaders(origin);
 
   // Create new response with CORS headers
@@ -143,7 +150,14 @@ export const addCorsHeaders = (response: Response, request: Request): Response =
     }
   });
 
-  logger.debug('Added CORS headers via middleware');
+  logger.info(`🔀 CORS headers applied to response - Origin: ${origin || 'none'} - ${isAllowed ? '✅ ALLOWED' : '❌ BLOCKED'}`, {
+    origin,
+    isAllowed,
+    allowedOrigins: getAllowedOrigins(),
+    corsHeadersAdded: Object.keys(corsHeaders),
+    hasAccessControlAllowOrigin: !!corsHeaders['Access-Control-Allow-Origin']
+  });
+
   return newResponse;
 };
 

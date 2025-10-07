@@ -74,6 +74,11 @@ export class Routes {
         response = await this.handleAPIStatus(request);
       }
 
+      // CORS diagnostic endpoint
+      if (!response && method === "GET" && path === "/api/cors-check") {
+        response = await this.handleCorsCheck(request);
+      }
+
       // 404 - Route not found
       if (!response) {
         response = ResponseView.notFound("Endpoint");
@@ -185,6 +190,43 @@ export class Routes {
     };
 
     return ResponseView.success(status, "API is operational");
+  }
+
+  /**
+   * CORS diagnostic endpoint
+   * GET /api/cors-check
+   */
+  private static async handleCorsCheck(request: Request): Promise<Response> {
+    const { corsConfig } = await import("../middleware/cors");
+    const origin = request.headers.get('origin');
+    const allowedOrigins = corsConfig.getAllowedOrigins();
+    const isAllowed = corsConfig.isOriginAllowed(origin);
+
+    const diagnostic = {
+      request: {
+        origin: origin || 'No origin header',
+        method: request.method,
+        headers: {
+          origin: request.headers.get('origin'),
+          referer: request.headers.get('referer'),
+          userAgent: request.headers.get('user-agent'),
+        }
+      },
+      config: {
+        environment: process.env.NODE_ENV,
+        allowedOrigins: allowedOrigins,
+        allowedOriginsRaw: process.env.ALLOWED_ORIGINS || 'NOT SET',
+        corsOriginRaw: process.env.CORS_ORIGIN || 'NOT SET',
+      },
+      validation: {
+        originProvided: !!origin,
+        originAllowed: isAllowed,
+        wouldAllowRequest: isAllowed || !origin,
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    return ResponseView.success(diagnostic, "CORS configuration check");
   }
 
   // =================================================================
