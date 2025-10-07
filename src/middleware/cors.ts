@@ -51,6 +51,7 @@ export const isOriginAllowed = (origin: string | null): boolean => {
 
   // Exact match
   if (allowedOrigins.includes(origin)) {
+    logger.debug(`✅ Origin allowed (exact match): ${origin}`);
     return true;
   }
 
@@ -60,11 +61,16 @@ export const isOriginAllowed = (origin: string | null): boolean => {
       const pattern = allowedOrigin.replace('*', '.*');
       const regex = new RegExp(`^${pattern}$`);
       if (regex.test(origin)) {
+        logger.debug(`✅ Origin allowed (pattern match): ${origin} matches ${allowedOrigin}`);
         return true;
       }
     }
   }
 
+  logger.warn(`❌ Origin NOT allowed: ${origin}`, {
+    requestedOrigin: origin,
+    allowedOrigins: allowedOrigins
+  });
   return false;
 };
 
