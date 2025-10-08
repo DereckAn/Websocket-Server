@@ -75,7 +75,7 @@ export class GameService {
       this.playerRoomMap.set(humanPlayer.id, room.id);
       this.playerRoomMap.set(aiPlayer.id, room.id);
 
-      // Build WebSocket endpoint"      const wsEndpoint = `ws://localhost:${process.env.WEBHOOK_PORT || 3000}/ws/gomoku/${room.id}`;
+      // Build WebSocket endpoint
       const wsEndpoint = `ws://localhost:${env.PORT}/ws/gomoku/${room.id}`;
 
       logger.game('Quick start game created', room.id, {

@@ -118,7 +118,7 @@ export class OnlineOrderModel {
         },
       ],
       state: "OPEN",
-      ticketName: `Online - ${orderData.userInfo.name}'s Online Order`,
+      ticketName: `Online - ${orderData.userInfo.name}`.substring(0, 30),
     };
   }
 
@@ -152,7 +152,7 @@ export class OnlineOrderModel {
           : null,
       orderStatus: "Created",
       handoffTime: handoffTime,
-      ticketName: `Online - ${orderData.userInfo.name} ${orderData.userInfo.lastname}`,
+      ticketName: `Online - ${orderData.userInfo.name}`.substring(0, 30),
       squareStatus: "OPEN",
       guestName: !orderData.userInfo.id ? orderData.userInfo.name : null,
       guestLastname: !orderData.userInfo.id
