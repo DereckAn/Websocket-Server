@@ -35,8 +35,9 @@ RUN addgroup -g 1001 -S nodejs && \
 
 WORKDIR /app
 
-# Set production environment
+# Set production environment (can be overridden by Railway)
 ENV NODE_ENV=production
+ENV PORT=3000
 
 # Copy package files
 COPY package.json bun.lockb* ./
@@ -51,12 +52,13 @@ COPY --from=builder /app/src ./src
 RUN chown -R bunuser:nodejs /app
 USER bunuser
 
-# Expose port (default 3000)
+# Expose port (Railway will override with $PORT env var)
 EXPOSE 3000
 
-# Health check for Gomoku server
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
+# Note: HEALTHCHECK removed for Railway compatibility
+# Railway uses its own health check system by making HTTP requests
+# to your service. The hardcoded port in HEALTHCHECK was causing
+# failures since Railway assigns dynamic ports via $PORT env var.
 
 # Use dumb-init for proper signal handling
 ENTRYPOINT ["dumb-init", "--"]
