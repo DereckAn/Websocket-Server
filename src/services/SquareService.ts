@@ -252,6 +252,11 @@ export class SquareService {
       throw new Error('Invalid order ID format');
     }
 
+    if (!squareClient) {
+      logger.error('❌ Square client not initialized - cannot fetch order');
+      throw new Error('Square client not initialized');
+    }
+
     try {
       logger.debug(`🔍 Fetching order from Square API: ${orderId}`);
 
@@ -381,8 +386,8 @@ export class SquareService {
                         this.stats.errors.processingErrors > 0;
 
     let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
-    
-    if (!config.isConfigured || squareClient) {
+
+    if (!config.isConfigured || !squareClient) {
       status = 'unhealthy';
     } else if (recentErrors) {
       status = 'degraded';
