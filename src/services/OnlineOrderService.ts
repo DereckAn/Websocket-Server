@@ -17,7 +17,7 @@ interface OrderResult {
 
 export class OnlineOrderService {
   static async createOnlineOrder(orderData: any): Promise<OrderResult> {
-    const idempotencykey = crypto.randomUUID();
+    // const idempotencykey = crypto.randomUUID();
 
     try {
       logger.info("Processing new online order...", {
@@ -43,7 +43,7 @@ export class OnlineOrderService {
       //step 3: Create order in Square
       logger.info("Creating order in Square...");
       const squareResponse = await squareClient.orders.create({
-        idempotencyKey: idempotencykey,
+        idempotencyKey: orderData.idempotencyKeyValue,
         order: squareOrderData,
       });
 
@@ -65,7 +65,7 @@ export class OnlineOrderService {
       const dbOrderData = OnlineOrderModel.formatOrderForDatabase(
         orderData,
         squareResponse.order,
-        idempotencykey
+        orderData.idempotencyKeyValue
       );
 
       //step 5: Insert into Supabase
@@ -211,7 +211,7 @@ export class OnlineOrderService {
       const { data: order, error: fetchError } = await supabase
         .from("Order")
         .select("squareOrderId, fulfillmentUid, squareVersion")
-        .eq("id", orderId)
+        .eq("squareOrderId", orderId)
         .single();
 
       if (fetchError || !order?.squareOrderId) {
@@ -291,7 +291,7 @@ export class OnlineOrderService {
             fulfillmentUid: fulfillmentUid, // Por si faltaba
             orderStatus: this.mapSquareStateToOrderStatus(fulfillmentState),
           })
-          .eq("id", orderId);
+          .eq("squareOrderId", orderId);
 
         if (updateError) {
           logger.warn("Failed to update version in Supabase", {
@@ -376,7 +376,7 @@ export class OnlineOrderService {
               fulfillmentUid: currentOrder.fulfillments?.[0]?.uid,
               orderStatus: this.mapSquareStateToOrderStatus(fulfillmentState),
             })
-            .eq("id", orderId);
+            .eq("squareOrderId", orderId);
 
           return { success: true };
         }

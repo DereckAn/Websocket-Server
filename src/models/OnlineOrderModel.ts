@@ -58,6 +58,7 @@ export class OnlineOrderModel {
 
     return {
       locationId: "LWYT37RKZNR7Y",
+        
       source: {
         name: "Online Order - hausbrock.com",
       },
@@ -204,6 +205,7 @@ export class OnlineOrderModel {
     return {
       id: dbOrder.id,
       idempotencyKeyValue: dbOrder.idempotencyKey,
+      squareOrderId: dbOrder.squareOrderId,
       orderStatus: dbOrder.orderStatus,
       userInfo: {
         id: dbOrder.userId,
