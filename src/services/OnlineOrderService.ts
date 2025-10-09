@@ -16,6 +16,67 @@ interface OrderResult {
 }
 
 export class OnlineOrderService {
+  private static async processPayment(
+    paymentToken: string,
+    orderId: string,
+    amount: number,
+    idempotencyKey: string,
+    customerId?: string,
+    verificationToken?: string
+  ): Promise<{ success: boolean; paymentId?: string; error?: string }> {
+    try {
+      logger.info("💳 Processing payment...", {
+        orderId,
+        amount,
+        customerId,
+      });
+
+      const paymentRequest: any = {
+        idempotencyKey: `${idempotencyKey}-payment`,
+        sourceId: paymentToken,
+        amountMoney: {
+          amount: BigInt(amount), // En centavos
+          currency: "USD",
+        },
+        orderId: orderId,
+        customerId: customerId,
+        locationId: "LWYT37RKZNR7Y",
+        autocomplete: true,
+      };
+
+      // Agregar verification token si existe (para 3D Secure)
+      if (verificationToken) {
+        paymentRequest.verificationToken = verificationToken;
+      }
+
+      const response = await squareClient.payments.create(paymentRequest);
+
+      if (!response.payment) {
+        logger.error("❌ Payment failed:", response.errors);
+        return {
+          success: false,
+          error: response.errors?.[0]?.detail || "Payment failed",
+        };
+      }
+
+      logger.info("✅ Payment successful:", {
+        paymentId: response.payment.id,
+        status: response.payment.status,
+      });
+
+      return {
+        success: true,
+        paymentId: response.payment.id,
+      };
+    } catch (error) {
+      logger.error("❌ Payment processing error:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Payment failed",
+      };
+    }
+  }
+
   static async createOnlineOrder(orderData: any): Promise<OrderResult> {
     // const idempotencykey = crypto.randomUUID();
 
@@ -61,14 +122,59 @@ export class OnlineOrderService {
         orderId: squareResponse.order.id,
       });
 
-      //step 4: Format order for Supabase
+      //step 4: Process payment
+      if (!orderData.paymentToken) {
+        logger.error("❌ Missing payment token");
+        return {
+          success: false,
+          error: "Payment token is required",
+        };
+      }
+
+      const paymentResult = await this.processPayment(
+        orderData.paymentToken,
+        squareResponse.order.id,
+        orderData.validatedTicket.total, // Total en centavos
+        orderData.idempotencyKeyValue,
+        orderData.userInfo.squareCustomerId,
+        orderData.verificationToken
+      );
+
+      if (!paymentResult.success) {
+        logger.error("❌ Payment failed, canceling order...");
+
+        // Cancelar la orden en Square
+        try {
+          await squareClient.orders.update({
+            orderId: squareResponse.order.id,
+            order: {
+              version: squareResponse.order.version,
+              state: "CANCELED",
+              locationId: "LWYT37RKZNR7Y",
+            },
+          });
+        } catch (cancelError) {
+          logger.error("Failed to cancel order:", cancelError);
+        }
+
+        return {
+          success: false,
+          error: paymentResult.error || "Payment processing failed",
+        };
+      }
+
+      logger.info("✅ Payment processed successfully");
+
+      //step 5: Format order for Supabase
       const dbOrderData = OnlineOrderModel.formatOrderForDatabase(
         orderData,
         squareResponse.order,
         orderData.idempotencyKeyValue
       );
 
-      //step 5: Insert into Supabase
+      dbOrderData.squarePaymentId = paymentResult.paymentId;
+
+      //step 6: Insert into Supabase
       logger.info("Inserting order into Supabase...");
       const { data: dbOrder, error: orderError } = await supabase
         .from("Order")
@@ -88,7 +194,7 @@ export class OnlineOrderService {
 
       logger.info("Order inserted into Supabase", { orderId: dbOrder.id });
 
-      // step 6: Save order Items
+      // step 7: Save order Items
       const dbItems = OnlineOrderModel.formatOrderItemsForDatabase(
         orderData,
         dbOrder.id
@@ -112,7 +218,7 @@ export class OnlineOrderService {
         orderId: dbOrder.id,
       });
 
-      // step 7 : Save modifiers for each item
+      // step 8: Save modifiers for each item
       for (let i = 0; i < orderData.cartItems.length; i++) {
         const cartItem = orderData.cartItems[i];
         const dbItem = saveItems[i];
@@ -139,7 +245,7 @@ export class OnlineOrderService {
         }
       }
 
-      // Step 8: Fetch complete order with items and modifiers
+      // Step 9: Fetch complete order with items and modifiers
       const { data: completeOrder, error: fetchError } = await supabase
         .from("Order")
         .select(
@@ -163,7 +269,7 @@ export class OnlineOrderService {
         };
       }
 
-      // Step 9: Format for admin display
+      // Step 10: Format for admin display
       const adminOrder = OnlineOrderModel.formatOrderForAdmin(
         completeOrder,
         completeOrder.items
@@ -184,11 +290,12 @@ export class OnlineOrderService {
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
         errorType: error?.constructor?.name,
-        fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
+        fullError: JSON.stringify(error, Object.getOwnPropertyNames(error)),
       });
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Unexpected error occurred",
+        error:
+          error instanceof Error ? error.message : "Unexpected error occurred",
       };
     }
   }
@@ -393,7 +500,11 @@ export class OnlineOrderService {
         orderId,
         fulfillmentState,
       });
-      return { success: false, error: error instanceof Error ? error.message : "Unexpected error occurred" };
+      return {
+        success: false,
+        error:
+          error instanceof Error ? error.message : "Unexpected error occurred",
+      };
     }
   }
 
