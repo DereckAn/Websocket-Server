@@ -1,15 +1,15 @@
 // =================================================================
-import { logger } from "../utils/logger";
+import { logger } from '@/shared/logger';
 // ROUTES INDEX - Central route dispatcher
 // =================================================================
 
-import { addCorsHeaders } from "../middleware/cors";
-import { addRateLimitHeaders } from "../middleware/rateLimit";
-import ResponseView from "../views/ResponseView";
-import AdminRoutes from "./adminRoutes";
-import GomokuRoutes from "./gomokuRoutes";
-import OnlineOrderRoutes from "./onlineOrderRoutes";
-import SquareRoutes from "./squareRoutes";
+import { addCorsHeaders } from '@/shared/cors';
+import { addRateLimitHeaders } from '@/shared/rateLimit';
+import ResponseView from '@/shared/ResponseView';
+import AdminRoutes from '@/square/adminRoutes';
+import GomokuRoutes from '@/gomoku/gomokuRoutes';
+import OnlineOrderRoutes from '@/square/onlineOrderRoutes';
+import SquareRoutes from '@/square/squareRoutes';
 
 /**
  * Central Routes Handler
@@ -197,7 +197,7 @@ export class Routes {
    * GET /api/cors-check
    */
   private static async handleCorsCheck(request: Request): Promise<Response> {
-    const { corsConfig } = await import("../middleware/cors");
+    const { corsConfig } = await import('@/shared/cors');
     const origin = request.headers.get('origin');
     const allowedOrigins = corsConfig.getAllowedOrigins();
     const isAllowed = corsConfig.isOriginAllowed(origin);
@@ -282,7 +282,7 @@ export class Routes {
    * Generates unique request ID for tracing
    */
   private static generateRequestId(): string {
-    return require("../utils").createRequestId();
+    return require('@/shared').createRequestId();
   }
 
   /**

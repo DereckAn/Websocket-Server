@@ -2,18 +2,18 @@
 // GOMOKU SERVER - Main server with complete MVC architecture
 // =================================================================
 
-import Routes from './routes/index';
-import GameService from './services/GameService';
-import AIService from './services/AIService';
-import WebSocketService from './services/WebSocketService';
-import { SquareService } from './services/SquareService';
-import { AdminWebSocketService } from './services/AdminWebSocketService';
-import GomokuController from './controllers/GomokuController';
-import SquareController from './controllers/SquareController';
-import CleanupService from './services/CleanupService';
-import { env, isProduction } from './config/env';
-import { logger } from './utils/logger';
-import { shutdownHandler } from './utils/shutdown';
+import Routes from '@/routes/index';
+import GameService from '@/gomoku/GameService';
+import AIService from '@/gomoku/AIService';
+import WebSocketService from '@/gomoku/WebSocketService';
+import { SquareService } from '@/square/SquareService';
+import { AdminWebSocketService } from '@/square/AdminWebSocketService';
+import GomokuController from '@/gomoku/GomokuController';
+import SquareController from '@/square/SquareController';
+import CleanupService from '@/gomoku/CleanupService';
+import { env, isProduction } from '@/shared/env';
+import { logger } from '@/shared/logger';
+import { shutdownHandler } from '@/shared/shutdown';
 
 /**
  * Gomoku Game Server with MVC Architecture
