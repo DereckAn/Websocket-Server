@@ -8,7 +8,7 @@ FROM oven/bun:1-alpine as builder
 WORKDIR /app
 
 # Copy package files
-COPY package.json bun.lockb* ./
+COPY package.json bun.lock* ./
 
 # Install all dependencies (including dev for type checking)
 RUN bun install --frozen-lockfile
@@ -40,13 +40,17 @@ ENV NODE_ENV=production
 ENV PORT=3000
 
 # Copy package files
-COPY package.json bun.lockb* ./
+COPY package.json bun.lock* ./
 
 # Install only production dependencies
 RUN bun install --production --frozen-lockfile
 
 # Copy source code from builder
 COPY --from=builder /app/src ./src
+
+# tsconfig.json is required at runtime: Bun resolves the "@/*" path alias
+# from its "paths" mapping. Without it every "@/..." import fails to resolve.
+COPY tsconfig.json ./
 
 # Change ownership to non-root user
 RUN chown -R bunuser:nodejs /app
