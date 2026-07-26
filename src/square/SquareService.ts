@@ -1,5 +1,7 @@
 // =================================================================
-import { logger } from '@/shared/logger';
+import { createLogger } from '@/shared/logger';
+
+const logger = createLogger('orders');
 // SQUARE SERVICE - Business logic for Square webhook processing
 // =================================================================
 

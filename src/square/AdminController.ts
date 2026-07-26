@@ -5,7 +5,9 @@
 import GameService from '@/gomoku/GameService';
 import AIService from '@/gomoku/AIService';
 import WebSocketService from '@/gomoku/WebSocketService';
-import { logger } from '@/shared/logger';
+import { createLogger } from '@/shared/logger';
+
+const logger = createLogger('orders');
 
 /**
  * AdminController - Handles administrative and monitoring endpoints

@@ -1,8 +1,18 @@
 // =================================================================
 // STRUCTURED LOGGING UTILITY
 // =================================================================
+// Two independent filters:
+//   LOG_LEVEL  — minimum severity: debug < info < warn < error
+//   LOG_SCOPE  — comma-separated allowlist of categories (subsystems),
+//                e.g. "orders" or "game,ai". Unset or "*" = all categories.
+//
+// Every log line carries a `category` (subsystem). Create a scoped logger
+// per module with `createLogger('orders')`; all its calls are stamped with
+// that category so `LOG_SCOPE=orders` shows only that subsystem. Adding a
+// new feature is just `createLogger('my-feature')` — no changes here.
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
 const isProduction = () => process.env.NODE_ENV === 'production';
 
 const LOG_LEVELS: Record<LogLevel, number> = {
@@ -12,149 +22,153 @@ const LOG_LEVELS: Record<LogLevel, number> = {
   error: 3,
 };
 
+const LEVEL_EMOJI: Record<LogLevel, string> = {
+  debug: '🔍',
+  info: 'ℹ️',
+  warn: '⚠️',
+  error: '❌',
+};
+
+// Parse LOG_SCOPE into an allowlist. null => no category filter (show all).
+function parseScope(raw: string | undefined): Set<string> | null {
+  const value = raw?.trim();
+  if (!value || value === '*') return null;
+  return new Set(
+    value
+      .split(',')
+      .map((category) => category.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
 class Logger {
-  private minLevel: number;
+  private readonly category: string;
+  private readonly minLevel: number;
+  private readonly scope: Set<string> | null;
 
-  constructor() {
-    this.minLevel = LOG_LEVELS[(process.env.LOG_LEVEL as LogLevel)] ?? LOG_LEVELS.info;
+  constructor(category: string = 'system') {
+    this.category = category;
+    this.minLevel =
+      LOG_LEVELS[process.env.LOG_LEVEL as LogLevel] ?? LOG_LEVELS.info;
+    this.scope = parseScope(process.env.LOG_SCOPE);
   }
 
-  /**
-   * Check if a log level should be logged
-   */
-  private shouldLog(level: LogLevel): boolean {
-    return LOG_LEVELS[level] >= this.minLevel;
+  /** A logger bound to a subsystem category (e.g. 'orders', 'game', 'ai'). */
+  child(category: string): Logger {
+    return new Logger(category);
   }
 
-  /**
-   * Format log message
-   */
-  private formatMessage(level: LogLevel, message: string, data?: any): string {
+  private shouldLog(level: LogLevel, category: string): boolean {
+    if (LOG_LEVELS[level] < this.minLevel) return false;
+    if (this.scope && !this.scope.has(category)) return false;
+    return true;
+  }
+
+  private format(
+    level: LogLevel,
+    category: string,
+    message: string,
+    data?: unknown,
+  ): string {
     const timestamp = new Date().toISOString();
 
     if (isProduction()) {
-      // JSON format for production (easy to parse)
-      const logObject = {
+      // JSON for production — one line per event, easy to parse and query.
+      return JSON.stringify({
         timestamp,
         level,
+        category,
         message,
-        ...(data && { data }),
-      };
-      return JSON.stringify(logObject);
-    } else {
-      // Human-readable format for development
-      const emoji = {
-        debug: '🔍',
-        info: 'ℹ️',
-        warn: '⚠️',
-        error: '❌',
-      }[level];
-
-      let output = `${emoji} [${level.toUpperCase()}] ${message}`;
-      if (data) {
-        output += `\n${JSON.stringify(data, null, 2)}`;
-      }
-      return output;
+        ...(data !== undefined ? { data } : {}),
+      });
     }
+
+    let output = `${LEVEL_EMOJI[level]} [${level.toUpperCase()}] [${category}] ${message}`;
+    if (data !== undefined) {
+      output += `\n${JSON.stringify(data, null, 2)}`;
+    }
+    return output;
   }
 
-  /**
-   * Log debug message (development only)
-   */
-  debug(message: string, data?: any) {
-    if (this.shouldLog('debug')) {
-      console.log(this.formatMessage('debug', message, data));
-    }
+  private emit(
+    level: LogLevel,
+    category: string,
+    message: string,
+    data?: unknown,
+  ) {
+    if (!this.shouldLog(level, category)) return;
+    const line = this.format(level, category, message, data);
+    if (level === 'error') console.error(line);
+    else if (level === 'warn') console.warn(line);
+    else console.log(line);
   }
 
-  /**
-   * Log info message
-   */
-  info(message: string, data?: any) {
-    if (this.shouldLog('info')) {
-      console.log(this.formatMessage('info', message, data));
-    }
+  debug(message: string, data?: unknown) {
+    this.emit('debug', this.category, message, data);
   }
 
-  /**
-   * Log warning message
-   */
-  warn(message: string, data?: any) {
-    if (this.shouldLog('warn')) {
-      console.warn(this.formatMessage('warn', message, data));
-    }
+  info(message: string, data?: unknown) {
+    this.emit('info', this.category, message, data);
   }
 
-  /**
-   * Log error message
-   */
+  warn(message: string, data?: unknown) {
+    this.emit('warn', this.category, message, data);
+  }
+
   error(message: string, error?: Error | any, additionalData?: any) {
-    if (this.shouldLog('error')) {
-      let data: any;
+    let data: any;
 
-      if (error instanceof Error) {
-        data = {
-          name: error.name,
-          message: error.message,
-          stack: isProduction() ? undefined : error.stack,
-          ...(additionalData && additionalData),
-        };
-      } else if (error) {
-        data = {
-          ...error,
-          ...(additionalData && additionalData),
-        };
-      } else {
-        data = additionalData;
-      }
-
-      console.error(this.formatMessage('error', message, data));
+    if (error instanceof Error) {
+      data = {
+        name: error.name,
+        message: error.message,
+        stack: isProduction() ? undefined : error.stack,
+        ...(additionalData && additionalData),
+      };
+    } else if (error) {
+      data = {
+        ...error,
+        ...(additionalData && additionalData),
+      };
+    } else {
+      data = additionalData;
     }
+
+    this.emit('error', this.category, message, data);
   }
 
   /**
-   * Log HTTP request
+   * Log an HTTP request. Always categorized as 'http' regardless of the
+   * instance's category, so HTTP access logs filter independently.
    */
   http(method: string, path: string, status: number, duration?: number) {
     const message = `${method} ${path} - ${status}`;
     const data = duration ? { duration: `${duration}ms` } : undefined;
-
-    if (status >= 500) {
-      this.error(message, data);
-    } else if (status >= 400) {
-      this.warn(message, data);
-    } else {
-      this.debug(message, data);
-    }
+    const level: LogLevel =
+      status >= 500 ? 'error' : status >= 400 ? 'warn' : 'debug';
+    this.emit(level, 'http', message, data);
   }
 
-  /**
-   * Log game event
-   */
+  /** Game event — always categorized as 'game'. */
   game(event: string, roomId?: string, data?: any) {
-    this.info(`[Game] ${event}`, {
-      roomId,
-      ...data,
-    });
+    this.emit('info', 'game', event, { roomId, ...data });
   }
 
-  /**
-   * Log WebSocket event
-   */
+  /** WebSocket event — always categorized as 'websocket'. */
   ws(event: string, connectionId?: string, data?: any) {
-    this.debug(`[WebSocket] ${event}`, {
-      connectionId,
-      ...data,
-    });
+    this.emit('debug', 'websocket', event, { connectionId, ...data });
   }
 
-  /**
-   * Log AI event
-   */
+  /** AI event — always categorized as 'ai'. */
   ai(event: string, data?: any) {
-    this.debug(`[AI] ${event}`, data);
+    this.emit('debug', 'ai', event, data);
   }
 }
 
-// Export singleton instance
+// Default singleton (category 'system') for infrastructure/shared code.
 export const logger = new Logger();
+
+/** Create a logger scoped to a subsystem category (e.g. 'orders', 'game'). */
+export function createLogger(category: string): Logger {
+  return new Logger(category);
+}

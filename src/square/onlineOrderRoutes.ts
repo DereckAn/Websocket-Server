@@ -5,7 +5,9 @@
 import OnlineOrderController from '@/square/OnlineOrderController';
 import { handleCorsPrelight } from '@/shared/cors';
 import { rateLimitMiddleware } from '@/shared/rateLimit';
-import { logger } from '@/shared/logger';
+import { createLogger } from '@/shared/logger';
+
+const logger = createLogger('orders');
 import ResponseView from '@/shared/ResponseView';
 
 /**

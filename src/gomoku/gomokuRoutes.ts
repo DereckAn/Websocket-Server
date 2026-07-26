@@ -1,5 +1,7 @@
 // =================================================================
-import { logger } from '@/shared/logger';
+import { createLogger } from '@/shared/logger';
+
+const logger = createLogger('game');
 // GOMOKU ROUTES - Route definitions for Gomoku game endpoints
 // =================================================================
 

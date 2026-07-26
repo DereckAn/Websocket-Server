@@ -6,7 +6,9 @@ import AdminController from '@/square/AdminController';
 import { rateLimitMiddleware } from '@/shared/rateLimit';
 import { handleCorsPrelight } from '@/shared/cors';
 import ResponseView from '@/shared/ResponseView';
-import { logger } from '@/shared/logger';
+import { createLogger } from '@/shared/logger';
+
+const logger = createLogger('orders');
 
 /**
  * Admin Routes Handler

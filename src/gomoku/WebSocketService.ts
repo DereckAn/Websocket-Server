@@ -9,7 +9,9 @@ import {
   type AIMove,
   GAME_CONFIG
 } from '@/gomoku/types';
-import { logger } from '@/shared/logger';
+import { createLogger } from '@/shared/logger';
+
+const logger = createLogger('game');
 
 /**
  * WebSocketService - Manages real-time communication for games

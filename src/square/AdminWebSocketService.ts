@@ -1,5 +1,7 @@
 // =================================================================
-import { logger } from '@/shared/logger';
+import { createLogger } from '@/shared/logger';
+
+const logger = createLogger('orders');
 // ADMIN WEBSOCKET SERVICE - Real-time communication for Square admin
 // =================================================================
 

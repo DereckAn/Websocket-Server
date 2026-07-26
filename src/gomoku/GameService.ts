@@ -18,7 +18,9 @@ import {
 import GameModel from '@/gomoku/GameModel';
 import PlayerModel from '@/gomoku/PlayerModel';
 import RoomModel from '@/gomoku/RoomModel';
-import { logger } from '@/shared/logger';
+import { createLogger } from '@/shared/logger';
+
+const logger = createLogger('game');
 import { env } from '@/shared/env';
 
 /**

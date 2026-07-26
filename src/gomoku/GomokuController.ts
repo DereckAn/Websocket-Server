@@ -14,7 +14,9 @@ import {
 import GameService from '@/gomoku/GameService';
 import WebSocketService from '@/gomoku/WebSocketService';
 import RoomModel from '@/gomoku/RoomModel';
-import { logger } from '@/shared/logger';
+import { createLogger } from '@/shared/logger';
+
+const logger = createLogger('game');
 
 /**
  * GomokuController - Handles all Gomoku-related HTTP and WebSocket requests

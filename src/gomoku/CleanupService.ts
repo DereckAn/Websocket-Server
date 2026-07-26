@@ -2,7 +2,9 @@
 // CLEANUP SERVICE - Auto-cleanup inactive rooms and connections
 // =================================================================
 
-import { logger } from '@/shared/logger';
+import { createLogger } from '@/shared/logger';
+
+const logger = createLogger('game');
 import { env } from '@/shared/env';
 import GameService from '@/gomoku/GameService';
 import WebSocketService from '@/gomoku/WebSocketService';

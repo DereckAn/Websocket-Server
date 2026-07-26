@@ -5,7 +5,9 @@
 import squareClient from '@/square/square-client';
 import { supabase } from '@/square/supabase-client';
 import { OnlineOrderModel } from '@/square/OnlineOrderModel';
-import { logger } from '@/shared/logger';
+import { createLogger } from '@/shared/logger';
+
+const logger = createLogger('orders');
 // import { v4 as uuidv4 } from "uuid";
 
 interface OrderResult {

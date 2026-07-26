@@ -4,7 +4,9 @@
 
 import { AdminWebSocketService } from '@/square/AdminWebSocketService';
 import { OnlineOrderService } from '@/square/OnlineOrderService';
-import { logger } from '@/shared/logger';
+import { createLogger } from '@/shared/logger';
+
+const logger = createLogger('orders');
 import ResponseView from '@/shared/ResponseView';
 
 /**

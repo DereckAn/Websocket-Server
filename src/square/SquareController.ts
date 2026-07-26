@@ -5,7 +5,9 @@
 import { SquareService } from '@/square/SquareService';
 import { AdminWebSocketService } from '@/square/AdminWebSocketService';
 import { OrderModel } from '@/square/OrderModel';
-import { logger } from '@/shared/logger';
+import { createLogger } from '@/shared/logger';
+
+const logger = createLogger('orders');
 import ResponseView from '@/shared/ResponseView';
 import type {
   SquareWebhookEvent,

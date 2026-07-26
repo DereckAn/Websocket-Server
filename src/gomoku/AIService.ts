@@ -13,7 +13,9 @@ import {
 } from '@/gomoku/types';
 import GameModel from '@/gomoku/GameModel';
 import OpeningBook from '@/gomoku/OpeningBook';
-import { logger } from '@/shared/logger';
+import { createLogger } from '@/shared/logger';
+
+const logger = createLogger('game');
 
 /**
  * AIService - High-performance Gomoku AI optimized for server
