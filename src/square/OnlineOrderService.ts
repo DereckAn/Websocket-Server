@@ -285,7 +285,12 @@ export class OnlineOrderService {
           newVersion: response.order.version,
         });
 
-        // 4. Actualizar versión en Supabase
+        // 4. Espejo en Supabase. La fuente de verdad del estado en vivo es el
+        // fulfillment state de Square (el tablero lo lee de Square, no de la BD).
+        // orderStatus aquí es una copia denormalizada que alimenta la vista de
+        // recibos/historial del admin, que no puede reconstruir el estado desde
+        // Square por el rango acotado de búsqueda. squareVersion/fulfillmentUid
+        // son caché para evitar un GET extra a Square en la próxima actualización.
         const { error: updateError } = await supabase
           .from("Order")
           .update({
