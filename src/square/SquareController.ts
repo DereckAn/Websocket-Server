@@ -126,12 +126,15 @@ export class SquareController {
             });
             AdminWebSocketService.broadcastOrderUpdate(eventResult.order);
           } else {
-            // Fallback: treat unknown events as new orders
-            logger.info('📢 Broadcasting order (unknown type) to admin clients:', {
+            // Any non-created event (fulfillment/payment updates, etc.) is an
+            // UPDATE to an existing order — not a new order. Broadcasting these as
+            // new-order re-adds the card and replays the notification sound on a
+            // status change. Only order.created is a genuine new order.
+            logger.info('📢 Broadcasting order (non-created event) as UPDATE to admin clients:', {
               orderId: eventResult.order.id,
               eventType
             });
-            AdminWebSocketService.broadcastNewOrder(eventResult.order);
+            AdminWebSocketService.broadcastOrderUpdate(eventResult.order);
           }
         } else {
           logger.warn('⚠️ Event not broadcasted:', {
