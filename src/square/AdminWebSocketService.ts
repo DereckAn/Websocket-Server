@@ -307,6 +307,17 @@ export class AdminWebSocketService {
 
       if (timeSinceLastPing > this.CONNECTION_TIMEOUT) {
         logger.info(`🧹 Removing stale admin connection: ${clientId}`);
+        // Close the socket too — otherwise the client keeps an open, silent
+        // socket (no onclose) and never reconnects, silently missing every
+        // broadcast until it reloads.
+        try {
+          connection.ws.close(1000, "Stale connection");
+        } catch (error) {
+          logger.warn("Failed to close stale admin connection", {
+            clientId,
+            error,
+          });
+        }
         this.connections.delete(clientId);
         removedCount++;
       }
